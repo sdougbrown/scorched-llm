@@ -3,16 +3,23 @@ import { resolve } from 'node:path'
 import { parseMatchConfig } from '../config/schema.js'
 import { alwaysPassAgent } from '../match/fake-agents.js'
 import { runMatch } from '../match/orchestration.js'
+import { createModel } from '../model/factory.js'
+import { ModelBackedTankAgent } from '../model/tank-agent.js'
+import { buildSystemPrompt } from '../model/system-prompt.js'
+import { createAggressiveAgent, createConservativeAgent } from '../match/scripted-agents.js'
 
 export async function runCli(argv: string[]): Promise<void> {
   let configPath: string | undefined
   let outPath: string | undefined
+  let live = false
 
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--config' && argv[i + 1]) {
       configPath = resolve(argv[++i])
     } else if (argv[i] === '--out' && argv[i + 1]) {
       outPath = resolve(argv[++i])
+    } else if (argv[i] === '--live') {
+      live = true
     }
   }
 
@@ -28,7 +35,22 @@ export async function runCli(argv: string[]): Promise<void> {
   const raw = readFileSync(configPath, 'utf-8')
   const config = parseMatchConfig(JSON.parse(raw))
 
-  const agents = config.players.map((p) => alwaysPassAgent(p.label))
+  const agents = config.players.map((p) => {
+    if (live) {
+      if (p.model) {
+        const model = createModel(p.model)
+        const systemPrompt = buildSystemPrompt(config, p.label)
+        return new ModelBackedTankAgent(p.label, model, systemPrompt, config.maxToolCallsPerTurn)
+      } else if (p.scripted) {
+        if (p.scripted === 'aggressive') {
+          return createAggressiveAgent(p.label)
+        } else {
+          return createConservativeAgent(p.label)
+        }
+      }
+    }
+    return alwaysPassAgent(p.label)
+  })
 
   const { log, result } = await runMatch(config, agents)
 
