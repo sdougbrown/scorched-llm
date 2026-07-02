@@ -8,6 +8,8 @@ export interface TankState {
   maxHp: number
   alive: boolean
   facing: number
+  damageDealt: number
+  hitsLanded: number
 }
 
 /** An active flare in the arena. */
