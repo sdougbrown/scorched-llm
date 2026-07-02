@@ -27,7 +27,7 @@ export type ActionResult =
 
 /** A single action event — one tool call and its result. */
 export interface ActionEvent {
-  kind: 'move' | 'flare' | 'shell' | 'pass' | 'invalid'
+  kind: 'move' | 'flare' | 'shell' | 'pass' | 'invalid' | 'observation'
   call: ToolCall
   result: ActionResult
   snapshot: GameState

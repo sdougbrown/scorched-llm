@@ -178,7 +178,6 @@ function buildUmpireFields(toolCall: ToolCall): Record<string, unknown> {
       break
     case 'look':
     case 'known_map':
-      fields.pass = true
       break
   }
   return fields
@@ -266,7 +265,7 @@ function resolveAction(
   return { newState, result, moveCost }
 }
 
-function getActionKind(toolCall: ToolCall): 'move' | 'flare' | 'shell' | 'pass' | 'invalid' {
+function getActionKind(toolCall: ToolCall): 'move' | 'flare' | 'shell' | 'pass' | 'invalid' | 'observation' {
   switch (toolCall.tool.kind) {
     case 'move':
       return 'move'
@@ -274,6 +273,9 @@ function getActionKind(toolCall: ToolCall): 'move' | 'flare' | 'shell' | 'pass' 
       return 'flare'
     case 'fire_shell':
       return 'shell'
+    case 'look':
+    case 'known_map':
+      return 'observation'
     default:
       return 'pass'
   }
@@ -447,7 +449,7 @@ export async function runMatch(
           snapshot: deepCloneGameState(runner.state),
         })
         runner.invalidStreak++
-        runner.remainingActions--
+        if (runner.invalidStreak >= 3) break
         continue
       }
 
@@ -468,12 +470,21 @@ export async function runMatch(
         snapshot: deepCloneGameState(runner.state),
       })
 
-      if (kind === 'move' && result.kind === 'ok') {
-        runner.remainingMoveBudget -= moveCost
-      }
+      const isObservation = kind === 'observation'
+      const isBlocked = result.kind === 'blocked'
 
-      runner.remainingActions--
-      runner.invalidStreak = 0
+      if (isObservation) {
+        runner.invalidStreak = 0
+      } else if (isBlocked) {
+        runner.invalidStreak++
+        if (runner.invalidStreak >= 3) break
+      } else {
+        if (kind === 'move' && result.kind === 'ok') {
+          runner.remainingMoveBudget -= moveCost
+        }
+        runner.remainingActions--
+        runner.invalidStreak = 0
+      }
 
       const termination = checkTermination(runner.state, config, runner.turnCursor)
       if (termination) {
