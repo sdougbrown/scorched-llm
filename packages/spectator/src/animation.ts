@@ -22,6 +22,12 @@ export class AnimationScheduler {
     this.playing = true
     this.currentIndex = 0
     this.lastFrameTime = performance.now()
+
+    // Render the first frame immediately
+    const pos = timeline.seek(this.currentIndex)
+    renderer.render(pos.state, config, { showFog: true, showTrajectories: false, animate: true })
+    this.currentIndex++
+
     this.tick()
   }
 
@@ -37,6 +43,11 @@ export class AnimationScheduler {
     if (this.timeline && this.renderer && this.config) {
       this.playing = true
       this.lastFrameTime = performance.now()
+
+      // Render current frame immediately on resume
+      const pos = this.timeline.seek(Math.max(0, this.currentIndex - 1))
+      this.renderer.render(pos.state, this.config, { showFog: true, showTrajectories: false, animate: true })
+
       this.tick()
     }
   }
