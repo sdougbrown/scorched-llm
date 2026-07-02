@@ -1,5 +1,6 @@
 import type { GameState } from './state.js'
 import type { TurnEvent } from './events.js'
+import type { MatchConfig } from '../config/schema.js'
 
 /** Match termination and ranking result. */
 export interface MatchResult {
@@ -23,7 +24,7 @@ export interface MatchLog {
     promptVersion: string
     adapterVersions: Record<string, string>
   }
-  config: unknown
+  config: MatchConfig
   initialState: GameState
   turns: TurnEvent[]
   result: MatchResult

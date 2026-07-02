@@ -56,8 +56,8 @@ export const MatchConfigSchema = z.object({
     tankHeight: z.number(),
   }),
   lethality: z.object({
-    hitsToKill: z.enum(['1', '2']).transform((v) => v === '1' ? 1 as const : 2 as const),
-  }).optional(),
+    hitsToKill: z.union([z.literal(1), z.literal(2)]),
+  }).default({ hitsToKill: 2 }),
   turnLimit: z.number().int().min(1),
   perTurnTimeoutMs: z.number().int().min(0),
   maxToolCallsPerTurn: z.number().int().min(1),
@@ -73,7 +73,7 @@ export const DEFAULT_MATCH_CONFIG: Partial<MatchConfig> = {
 export function parseMatchConfig(raw: unknown): MatchConfig {
   const withDefaults = Object.assign({}, raw) as Record<string, unknown>
   if (withDefaults.actionEconomy == null) withDefaults.actionEconomy = 'double'
-  if (withDefaults.lethality == null) withDefaults.lethality = { hitsToKill: '2' }
+  if (withDefaults.lethality == null) withDefaults.lethality = { hitsToKill: 2 }
 
   const result = MatchConfigSchema.parse(withDefaults)
 

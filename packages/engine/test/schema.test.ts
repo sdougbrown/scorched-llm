@@ -50,8 +50,8 @@ describe('parseMatchConfig', () => {
     maxToolCallsPerTurn: 10,
   }
 
-  it('parses a fully specified config with hitsToKill string', () => {
-    const config = parseMatchConfig({ ...validRaw, lethality: { hitsToKill: '2' } })
+  it('parses a fully specified config with hitsToKill numeric', () => {
+    const config = parseMatchConfig({ ...validRaw, lethality: { hitsToKill: 2 } })
     expect(config.rulesVersion).toBe('1.0')
     expect(config.seed).toBe(42)
     expect(config.map.width).toBe(100)
@@ -61,7 +61,7 @@ describe('parseMatchConfig', () => {
   })
 
   it('applies actionEconomy default when missing', () => {
-    const config = parseMatchConfig({ ...validRaw, actionEconomy: undefined, lethality: { hitsToKill: '2' } })
+    const config = parseMatchConfig({ ...validRaw, actionEconomy: undefined, lethality: { hitsToKill: 2 } })
     expect(config.actionEconomy).toBe('double')
   })
 
@@ -71,12 +71,12 @@ describe('parseMatchConfig', () => {
   })
 
   it('applies moveMax default from fog.flareRadius when missing', () => {
-    const config = parseMatchConfig({ ...validRaw, moveMax: undefined, lethality: { hitsToKill: '2' } })
+    const config = parseMatchConfig({ ...validRaw, moveMax: undefined, lethality: { hitsToKill: 2 } })
     expect(config.moveMax).toBe(8)
   })
 
   it('preserves explicit moveMax', () => {
-    const config = parseMatchConfig({ ...validRaw, moveMax: 12, lethality: { hitsToKill: '2' } })
+    const config = parseMatchConfig({ ...validRaw, moveMax: 12, lethality: { hitsToKill: 2 } })
     expect(config.moveMax).toBe(12)
   })
 
@@ -164,20 +164,26 @@ describe('parseMatchConfig', () => {
     ).toThrow()
   })
 
-  it('handles hitsToKill transform from "1" to 1', () => {
+  it('accepts hitsToKill: 1', () => {
     const config = parseMatchConfig({
       ...validRaw,
-      lethality: { hitsToKill: '1' },
+      lethality: { hitsToKill: 1 },
     })
     expect(config.lethality.hitsToKill).toBe(1)
   })
 
-  it('handles hitsToKill transform from "2" to 2', () => {
+  it('accepts hitsToKill: 2', () => {
     const config = parseMatchConfig({
       ...validRaw,
-      lethality: { hitsToKill: '2' },
+      lethality: { hitsToKill: 2 },
     })
     expect(config.lethality.hitsToKill).toBe(2)
+  })
+
+  it('rejects hitsToKill: 3', () => {
+    expect(() =>
+      parseMatchConfig({ ...validRaw, lethality: { hitsToKill: 3 } })
+    ).toThrow()
   })
 })
 
