@@ -92,17 +92,23 @@ function normalizeToolCall(call: NormalizedToolCall): ToolCall | null {
 /**
  * ModelBackedTankAgent — a persistent agent that wraps a Model and
  * maintains linear message history across the whole match.
+ *
+ * Supports an inner loop: if the model returns finishReason 'tool_calls'
+ * (indicating more calls are needed), the agent re-queries with updated
+ * history until the max tool call cap is reached or the model stops.
  */
 export class ModelBackedTankAgent implements TankAgent {
   name: string
   messages: AgentMessage[]
   private model: Model
   private systemPrompt: string
+  private maxToolCallsPerTurn: number
 
-  constructor(name: string, model: Model, systemPrompt: string) {
+  constructor(name: string, model: Model, systemPrompt: string, maxToolCallsPerTurn: number) {
     this.name = name
     this.model = model
     this.systemPrompt = systemPrompt
+    this.maxToolCallsPerTurn = maxToolCallsPerTurn
     this.messages = [{ role: 'system', content: systemPrompt }]
   }
 
@@ -111,39 +117,61 @@ export class ModelBackedTankAgent implements TankAgent {
     const description = serializeWorldView(worldview)
     this.messages.push({ role: 'user', content: description })
 
-    // 2. Query the model
-    const request: ModelRequest = {
-      messages: this.messages,
-      tools,
-    }
-    const response = await this.model.query(request)
+    // 2. Inner loop: query model, execute, re-query if more calls needed
+    const allToolCalls: ToolCall[] = []
+    let finishReason = ''
+    let callCount = 0
 
-    // 3. Parse tool calls
-    const toolCalls: ToolCall[] = []
-    for (const call of response.toolCalls) {
-      const validated = normalizeToolCall(call)
-      if (validated !== null) {
-        toolCalls.push(validated)
+    do {
+      // 2a. Query the model with full history
+      const request: ModelRequest = {
+        messages: this.messages,
+        tools,
       }
-    }
+      const response = await this.model.query(request)
+      finishReason = response.finishReason
 
-    // 4. Append assistant response to history
-    const assistantContent: string | Array<{ type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }> =
-      response.toolCalls.length > 0
-        ? response.toolCalls.map((tc) => ({
-            type: 'tool_use' as const,
-            id: tc.id,
-            name: tc.name,
-            input: tc.arguments,
-          }))
-        : (response.assistantText ?? '')
-    
-    this.messages.push({
-      role: 'assistant',
-      content: typeof assistantContent === 'string' ? assistantContent : JSON.stringify(assistantContent),
-    })
+      // 2b. Parse tool calls
+      const calls: ToolCall[] = []
+      for (const call of response.toolCalls) {
+        const validated = normalizeToolCall(call)
+        if (validated !== null) {
+          calls.push(validated)
+        }
+      }
 
-    // 5. Return tool calls (stage 5: no inner-loop re-planning yet)
-    return toolCalls
+      // 2c. Append assistant response to history
+      const assistantContent: string | Array<{ type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }> =
+        response.toolCalls.length > 0
+          ? response.toolCalls.map((tc) => ({
+              type: 'tool_use' as const,
+              id: tc.id,
+              name: tc.name,
+              input: tc.arguments,
+            }))
+          : (response.assistantText ?? '')
+
+      this.messages.push({
+        role: 'assistant',
+        content: typeof assistantContent === 'string' ? assistantContent : JSON.stringify(assistantContent),
+      })
+
+      // 2d. Append each tool call result as a 'tool' message
+      // The engine will replace these with real results after execution.
+      // We use placeholder content so the model can continue its loop.
+      for (const tc of response.toolCalls) {
+        this.messages.push({
+          role: 'tool',
+          content: JSON.stringify({ toolCallId: tc.id, success: true }),
+        })
+      }
+
+      // 2e. Accumulate tool calls
+      allToolCalls.push(...calls)
+      callCount += calls.length
+    } while (finishReason === 'tool_calls' && callCount < this.maxToolCallsPerTurn)
+
+    // 3. Return all accumulated tool calls
+    return allToolCalls
   }
 }

@@ -49,7 +49,7 @@ const SYSTEM_PROMPT = 'You are a Scorched tank agent. Act strategically.'
 describe('ModelBackedTankAgent', () => {
   describe('message history', () => {
     it('starts with a system message', () => {
-      const agent = new ModelBackedTankAgent('tank-1', new FakeModel([]), SYSTEM_PROMPT)
+      const agent = new ModelBackedTankAgent('tank-1', new FakeModel([]), SYSTEM_PROMPT, 3)
       expect(agent.messages.length).toBe(1)
       expect(agent.messages[0].role).toBe('system')
       expect(agent.messages[0].content).toBe(SYSTEM_PROMPT)
@@ -59,7 +59,7 @@ describe('ModelBackedTankAgent', () => {
       const response1 = makeResponse({ assistantText: 'first response' })
       const response2 = makeResponse({ assistantText: 'second response' })
       const model = new FakeModel([response1, response2])
-      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT)
+      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT, 3)
 
       // Initial: only system message
       expect(agent.messages.length).toBe(1)
@@ -76,7 +76,7 @@ describe('ModelBackedTankAgent', () => {
     })
 
     it('has correct name', () => {
-      const agent = new ModelBackedTankAgent('my-tank', new FakeModel([]), SYSTEM_PROMPT)
+      const agent = new ModelBackedTankAgent('my-tank', new FakeModel([]), SYSTEM_PROMPT, 3)
       expect(agent.name).toBe('my-tank')
     })
   })
@@ -87,7 +87,7 @@ describe('ModelBackedTankAgent', () => {
         toolCalls: [{ id: 'm1', name: 'move', arguments: { direction: 'N', distance: 3 } }],
       })
       const model = new FakeModel([response])
-      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT)
+      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT, 3)
 
       const calls = await agent.takeTurn(makeWorldView(), TOOLS)
       expect(calls.length).toBe(1)
@@ -102,7 +102,7 @@ describe('ModelBackedTankAgent', () => {
         toolCalls: [{ id: 'f1', name: 'fire_flare', arguments: { direction: 'E', range: 5 } }],
       })
       const model = new FakeModel([response])
-      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT)
+      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT, 3)
 
       const calls = await agent.takeTurn(makeWorldView(), TOOLS)
       expect(calls.length).toBe(1)
@@ -116,7 +116,7 @@ describe('ModelBackedTankAgent', () => {
         toolCalls: [{ id: 's1', name: 'fire_shell', arguments: { angle: 90, power: 7 } }],
       })
       const model = new FakeModel([response])
-      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT)
+      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT, 3)
 
       const calls = await agent.takeTurn(makeWorldView(), TOOLS)
       expect(calls.length).toBe(1)
@@ -130,7 +130,7 @@ describe('ModelBackedTankAgent', () => {
         toolCalls: [{ id: 'p1', name: 'pass', arguments: {} }],
       })
       const model = new FakeModel([response])
-      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT)
+      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT, 3)
 
       const calls = await agent.takeTurn(makeWorldView(), TOOLS)
       expect(calls.length).toBe(1)
@@ -142,7 +142,7 @@ describe('ModelBackedTankAgent', () => {
         toolCalls: [{ id: 'l1', name: 'look', arguments: {} }],
       })
       const model = new FakeModel([response])
-      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT)
+      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT, 3)
 
       const calls = await agent.takeTurn(makeWorldView(), TOOLS)
       expect(calls.length).toBe(1)
@@ -154,7 +154,7 @@ describe('ModelBackedTankAgent', () => {
         toolCalls: [{ id: 'km1', name: 'known_map', arguments: {} }],
       })
       const model = new FakeModel([response])
-      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT)
+      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT, 3)
 
       const calls = await agent.takeTurn(makeWorldView(), TOOLS)
       expect(calls.length).toBe(1)
@@ -166,7 +166,7 @@ describe('ModelBackedTankAgent', () => {
         toolCalls: [{ id: 'm1', name: 'move', arguments: { direction: 'INVALID', distance: 3 } }],
       })
       const model = new FakeModel([response])
-      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT)
+      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT, 3)
 
       const calls = await agent.takeTurn(makeWorldView(), TOOLS)
       expect(calls.length).toBe(0)
@@ -177,7 +177,7 @@ describe('ModelBackedTankAgent', () => {
         toolCalls: [{ id: 'm1', name: 'move', arguments: { direction: 'N' } }],
       })
       const model = new FakeModel([response])
-      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT)
+      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT, 3)
 
       const calls = await agent.takeTurn(makeWorldView(), TOOLS)
       expect(calls.length).toBe(0)
@@ -188,7 +188,7 @@ describe('ModelBackedTankAgent', () => {
         toolCalls: [{ id: 's1', name: 'fire_shell', arguments: { angle: 'forty-five', power: 7 } }],
       })
       const model = new FakeModel([response])
-      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT)
+      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT, 3)
 
       const calls = await agent.takeTurn(makeWorldView(), TOOLS)
       expect(calls.length).toBe(0)
@@ -199,7 +199,7 @@ describe('ModelBackedTankAgent', () => {
         toolCalls: [{ id: 'x1', name: 'explosive_blast', arguments: {} }],
       })
       const model = new FakeModel([response])
-      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT)
+      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT, 3)
 
       const calls = await agent.takeTurn(makeWorldView(), TOOLS)
       expect(calls.length).toBe(0)
@@ -215,7 +215,7 @@ describe('ModelBackedTankAgent', () => {
         ],
       })
       const model = new FakeModel([response])
-      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT)
+      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT, 3)
 
       const calls = await agent.takeTurn(makeWorldView(), TOOLS)
       expect(calls.length).toBe(2)
@@ -232,7 +232,7 @@ describe('ModelBackedTankAgent', () => {
         ],
       })
       const model = new FakeModel([response])
-      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT)
+      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT, 3)
 
       const calls = await agent.takeTurn(makeWorldView(), TOOLS)
       expect(calls.length).toBe(0)
@@ -247,12 +247,12 @@ describe('ModelBackedTankAgent', () => {
         toolCalls: [{ id: 'm1', name: 'move', arguments: { direction: 'N', distance: 3 } }],
       })
       const model = new FakeModel([response])
-      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT)
+      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT, 3)
 
       await agent.takeTurn(makeWorldView({ turn: 1 }), TOOLS)
 
       // History should have: system, user (worldview), assistant (tool calls)
-      expect(agent.messages.length).toBe(3)
+      expect(agent.messages.length).toBe(4)
       expect(agent.messages[0].role).toBe('system')
       expect(agent.messages[1].role).toBe('user')
       expect(agent.messages[2].role).toBe('assistant')
@@ -269,7 +269,7 @@ describe('ModelBackedTankAgent', () => {
         ],
       })
       const model = new FakeModel([response])
-      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT)
+      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT, 3)
 
       const calls = await agent.takeTurn(makeWorldView(), TOOLS)
       expect(calls.length).toBe(3)
@@ -288,27 +288,27 @@ describe('ModelBackedTankAgent', () => {
         toolCalls: [{ id: 'm2', name: 'move', arguments: { direction: 'E', distance: 1 } }],
       })
       const model = new FakeModel([response1, response2])
-      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT)
+      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT, 3)
 
       // First turn
       await agent.takeTurn(makeWorldView({ turn: 1 }), TOOLS)
-      expect(agent.messages.length).toBe(3)
+      expect(agent.messages.length).toBe(4)
 
       // Serialize
       const serialized = JSON.stringify(agent.messages)
 
       // Create a new agent and restore
-      const agent2 = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT)
+      const agent2 = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT, 3)
       agent2.messages = JSON.parse(serialized) as import('../src/match/fake-agents.js').AgentMessage[]
 
-      expect(agent2.messages.length).toBe(3)
+      expect(agent2.messages.length).toBe(4)
       expect(agent2.messages[0].role).toBe('system')
       expect(agent2.messages[1].role).toBe('user')
       expect(agent2.messages[2].role).toBe('assistant')
 
       // Second turn should continue with correct history
       await agent2.takeTurn(makeWorldView({ turn: 2 }), TOOLS)
-      expect(agent2.messages.length).toBe(5)
+      expect(agent2.messages.length).toBe(7)
     })
   })
 
@@ -319,7 +319,7 @@ describe('ModelBackedTankAgent', () => {
         toolCalls: [],
       })
       const model = new FakeModel([response])
-      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT)
+      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT, 3)
 
       const calls = await agent.takeTurn(makeWorldView(), TOOLS)
       expect(calls.length).toBe(0)
@@ -331,7 +331,7 @@ describe('ModelBackedTankAgent', () => {
         toolCalls: [],
       })
       const model = new FakeModel([response])
-      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT)
+      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT, 3)
 
       await agent.takeTurn(makeWorldView(), TOOLS)
       expect(agent.messages.length).toBe(3)
