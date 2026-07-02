@@ -214,76 +214,71 @@ export class HttpModel implements Model {
       }
     }
 
+    let timedOut = false
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), this.perTurnTimeoutMs)
+    const timeoutId = setTimeout(() => { timedOut = true; controller.abort() }, this.perTurnTimeoutMs)
 
     let latencyMs = 0
     let response: Response | null = null
     let retries = 0
     const maxRetries = 3
     let lastError: Error | null = null
-    let requestStartTime = 0
 
-    while (retries <= maxRetries) {
-      requestStartTime = performance.now()
-      try {
-        const fetchResponse = await fetch(url, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(body),
-          signal: controller.signal,
-        })
-        latencyMs = performance.now() - requestStartTime
-        response = fetchResponse
-        break
-      } catch (err) {
-        latencyMs = performance.now() - requestStartTime
-        lastError = err as Error
-        if (isRetryableError(err) && retries < maxRetries) {
-          retries++
-          const delay = Math.min(1000 * Math.pow(2, retries - 1), 10000)
-          process.stderr.write(`HttpModel: retry ${retries}/${maxRetries}, waiting ${delay}ms\n`)
-          await sleep(delay)
-          continue
-        }
-        throw lastError
-      }
-    }
+    try {
+      while (retries <= maxRetries) {
+        const requestStartTime = performance.now()
+        try {
+          const fetchResponse = await fetch(url, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(body),
+            signal: controller.signal,
+          })
+          latencyMs = performance.now() - requestStartTime
 
-    clearTimeout(timeoutId)
+          // Check status — retry if retryable, otherwise return or throw
+          if (fetchResponse.status >= 400 && isRetryable(fetchResponse.status) && retries < maxRetries) {
+            retries++
+            const delay = Math.min(1000 * Math.pow(2, retries - 1), 10000)
+            process.stderr.write(`HttpModel: retry ${retries}/${maxRetries} after status ${fetchResponse.status}, waiting ${delay}ms\n`)
+            await sleep(delay)
+            continue
+          }
+          if (fetchResponse.status >= 400) {
+            const responseBody = await fetchResponse.text()
+            throw new Error(`HttpModel: ${fetchResponse.status} ${responseBody}`)
+          }
 
-    // Status-based retry: check response status and retry if needed
-    if (response != null) {
-      const status = response.status
-      if (status >= 400) {
-        if (isRetryable(status) && retries < maxRetries) {
-          retries++
-          const delay = Math.min(1000 * Math.pow(2, retries - 1), 10000)
-          process.stderr.write(`HttpModel: retry ${retries}/${maxRetries} after status ${status}, waiting ${delay}ms\n`)
-          await sleep(delay)
-          // Retry the fetch
-          const retryStart = performance.now()
-          try {
-            response = await fetch(url, {
-              method: 'POST',
-              headers,
-              body: JSON.stringify(body),
-            })
-            latencyMs = performance.now() - retryStart
-          } catch (err) {
-            latencyMs = performance.now() - retryStart
+          response = fetchResponse
+          break
+        } catch (err) {
+          latencyMs = performance.now() - requestStartTime
+
+          if (err instanceof DOMException && err.name === 'AbortError') {
+            if (timedOut) {
+              throw new Error(`HttpModel: request timed out after ${this.perTurnTimeoutMs}ms`)
+            }
             throw err
           }
-        } else if (isRetryable(status)) {
-          // Max retries exceeded
-          const responseBody = await response.text()
-          throw new Error(`HttpModel: ${status} ${responseBody}`)
-        } else {
-          // 4xx (except 429) — fail immediately
-          const responseBody = await response.text()
-          throw new Error(`HttpModel: ${status} ${responseBody}`)
+
+          // Re-throw HttpModel errors (from status check above)
+          if (err instanceof Error && err.message.startsWith('HttpModel:')) {
+            throw err
+          }
+
+          lastError = err as Error
+          if (isRetryableError(err) && retries < maxRetries) {
+            retries++
+            const delay = Math.min(1000 * Math.pow(2, retries - 1), 10000)
+            process.stderr.write(`HttpModel: retry ${retries}/${maxRetries}, waiting ${delay}ms\n`)
+            await sleep(delay)
+            continue
+          }
+          throw lastError
         }
       }
+    } finally {
+      clearTimeout(timeoutId)
     }
 
     if (response == null) {

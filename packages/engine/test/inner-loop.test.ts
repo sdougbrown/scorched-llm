@@ -84,14 +84,13 @@ describe('Inner-loop re-planning', () => {
 
       await agent.takeTurn(makeWorldView({ turn: 1 }), TOOLS)
 
-      // History should have: system, user, assistant1, tool1, assistant2, tool2
-      expect(agent.messages.length).toBe(6)
+      // History should have: system, user, assistant1, assistant2
+      // (no fake tool results — real results injected by orchestration layer)
+      expect(agent.messages.length).toBe(4)
       expect(agent.messages[0].role).toBe('system')
       expect(agent.messages[1].role).toBe('user')
       expect(agent.messages[2].role).toBe('assistant')
-      expect(agent.messages[3].role).toBe('tool')
-      expect(agent.messages[4].role).toBe('assistant')
-      expect(agent.messages[5].role).toBe('tool')
+      expect(agent.messages[3].role).toBe('assistant')
     })
   })
 

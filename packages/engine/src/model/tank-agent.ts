@@ -156,17 +156,10 @@ export class ModelBackedTankAgent implements TankAgent {
         content: typeof assistantContent === 'string' ? assistantContent : JSON.stringify(assistantContent),
       })
 
-      // 2d. Append each tool call result as a 'tool' message
-      // The engine will replace these with real results after execution.
-      // We use placeholder content so the model can continue its loop.
-      for (const tc of response.toolCalls) {
-        this.messages.push({
-          role: 'tool',
-          content: JSON.stringify({ toolCallId: tc.id, success: true }),
-        })
-      }
-
-      // 2e. Accumulate tool calls
+      // 2d. Accumulate tool calls
+      // Note: real tool results are injected by the orchestration layer after
+      // the engine executes each call. The agent does not append fake results
+      // — the model will see actual outcomes in the next turn's worldview.
       allToolCalls.push(...calls)
       callCount += calls.length
     } while (finishReason === 'tool_calls' && callCount < this.maxToolCallsPerTurn)

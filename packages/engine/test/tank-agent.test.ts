@@ -252,7 +252,8 @@ describe('ModelBackedTankAgent', () => {
       await agent.takeTurn(makeWorldView({ turn: 1 }), TOOLS)
 
       // History should have: system, user (worldview), assistant (tool calls)
-      expect(agent.messages.length).toBe(4)
+      // Note: real tool results are injected by the orchestration layer, not the agent
+      expect(agent.messages.length).toBe(3)
       expect(agent.messages[0].role).toBe('system')
       expect(agent.messages[1].role).toBe('user')
       expect(agent.messages[2].role).toBe('assistant')
@@ -290,9 +291,9 @@ describe('ModelBackedTankAgent', () => {
       const model = new FakeModel([response1, response2])
       const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT, 3)
 
-      // First turn
+      // First turn: system + user + assistant = 3
       await agent.takeTurn(makeWorldView({ turn: 1 }), TOOLS)
-      expect(agent.messages.length).toBe(4)
+      expect(agent.messages.length).toBe(3)
 
       // Serialize
       const serialized = JSON.stringify(agent.messages)
@@ -301,14 +302,14 @@ describe('ModelBackedTankAgent', () => {
       const agent2 = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT, 3)
       agent2.messages = JSON.parse(serialized) as import('../src/match/fake-agents.js').AgentMessage[]
 
-      expect(agent2.messages.length).toBe(4)
+      expect(agent2.messages.length).toBe(3)
       expect(agent2.messages[0].role).toBe('system')
       expect(agent2.messages[1].role).toBe('user')
       expect(agent2.messages[2].role).toBe('assistant')
 
-      // Second turn should continue with correct history
+      // Second turn should continue with correct history: 3 + user + assistant = 5
       await agent2.takeTurn(makeWorldView({ turn: 2 }), TOOLS)
-      expect(agent2.messages.length).toBe(7)
+      expect(agent2.messages.length).toBe(5)
     })
   })
 
