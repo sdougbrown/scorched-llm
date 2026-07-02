@@ -5,7 +5,12 @@ import type { ActionResult } from '../types/tool.js'
 import { DIRECTION_DELTAS, inBounds, cellsInRadius } from '../geometry/coords.js'
 import { revealed, blocked } from '../action-result/index.js'
 
-let flareCounter = 0
+function nextFlareId(state: GameState): string {
+  const maxId = state.flares.length > 0
+    ? Math.max(...state.flares.map((f) => parseInt(f.id.split('-')[1]) || 0))
+    : 0
+  return `flare-${maxId + 1}`
+}
 
 function cloneGameState(state: GameState): GameState {
   return {
@@ -49,7 +54,7 @@ export function fireFlare(
   }
 
   const flare: FlareState = {
-    id: `flare-${++flareCounter}`,
+    id: nextFlareId(state),
     targetCell,
     radius: config.fog.flareRadius,
     firerId,

@@ -21,9 +21,9 @@ export function applyDamage(
       if (t.id !== tankId) return t
       const newHp = t.hp - damage
       if (newHp <= 0) {
-        return { ...t, hp: 0, alive: false }
+        return { ...t, hp: 0, alive: false, hitsLanded: t.hitsLanded + 1, damageDealt: t.damageDealt + damage }
       }
-      return { ...t, hp: newHp }
+      return { ...t, hp: newHp, hitsLanded: t.hitsLanded + 1, damageDealt: t.damageDealt + damage }
     }),
   }
 

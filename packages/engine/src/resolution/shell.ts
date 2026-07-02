@@ -79,7 +79,8 @@ export function fireShell(
 
     // Check if out of bounds
     if (cell.x < 0 || cell.x >= width || cell.y < 0 || cell.y >= state.terrain.length) {
-      const impactPoint = sampledCells[Math.min(i, sampledCells.length - 1)]
+      const impactPointIdx = sampledCells.length > 0 ? Math.min(i, sampledCells.length - 1) : i
+      const impactPoint = sampledCells[impactPointIdx] ?? targetPos
       return {
         newState: state,
         result: miss(),
