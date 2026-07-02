@@ -9,8 +9,13 @@ import { buildSystemPrompt } from '../model/system-prompt.js'
 import { createAggressiveAgent, createConservativeAgent } from '../match/scripted-agents.js'
 import { runBatch } from './batch.js'
 import { runAggregate } from './aggregate.js'
+import { runExhibition } from './exhibition.js'
 
 export async function runCli(argv: string[]): Promise<void> {
+  if (argv[0] === 'exhibition') {
+    return runExhibition(argv.slice(1))
+  }
+
   if (argv[0] === 'batch') {
     return runBatch(argv.slice(1))
   }

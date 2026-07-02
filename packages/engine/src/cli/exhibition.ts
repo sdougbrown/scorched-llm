@@ -1,30 +1,16 @@
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync, readdirSync } from 'node:fs'
+import { resolve, join } from 'node:path'
 import { type PlayerSpec } from '../config/schema.js'
 import { PRESETS, SEED_SUITE, type PresetName } from '../config/presets.js'
-import { alwaysPassAgent } from '../match/fake-agents.js'
+import { VERSION } from '../index.js'
 import { createAggressiveAgent, createConservativeAgent } from '../match/scripted-agents.js'
 import { runMatch } from '../match/orchestration.js'
-import { createModel } from '../model/factory.js'
-import { ModelBackedTankAgent } from '../model/tank-agent.js'
-import { buildSystemPrompt } from '../model/system-prompt.js'
+import { alwaysPassAgent } from '../match/fake-agents.js'
+import { aggregateLogs } from './aggregate.js'
 
 interface RosterPlayer {
   label: string
-  scripted?: 'aggressive' | 'conservative'
-  model?: {
-    name: string
-    baseURL: string
-    apiKeyEnv?: string
-    model: string
-    headers?: Record<string, string>
-    parameters?: Record<string, unknown>
-    pricing?: { inputPerMillionUsd: number; outputPerMillionUsd: number }
-  }
-}
-
-interface RosterFile {
-  players: RosterPlayer[]
+  scripted: 'aggressive' | 'conservative'
 }
 
 interface BatchEntry {
@@ -74,17 +60,11 @@ function getCombinations<T>(arr: T[], k: number): T[][] {
 }
 
 function rosterToPlayerSpec(player: RosterPlayer): PlayerSpec {
-  const base = {
+  return {
     label: player.label,
     startPosition: 'random' as const,
+    scripted: player.scripted,
   }
-  if (player.scripted) {
-    return { ...base, scripted: player.scripted }
-  }
-  if (player.model) {
-    return { ...base, model: player.model }
-  }
-  throw new Error(`Roster player "${player.label}" has no model or scripted type`)
 }
 
 function getPlayerCount(preset: PresetName): number {
@@ -100,58 +80,7 @@ function buildSeatAssignment(players: RosterPlayer[]): Record<number, string> {
   return sa
 }
 
-export async function runBatch(argv: string[]): Promise<void> {
-  let rosterPath: string | undefined
-  let presetName: string | undefined
-  let outDir: string | undefined
-  let seedsCount: number | undefined
-  let live = false
-
-  for (let i = 0; i < argv.length; i++) {
-    if (argv[i] === '--roster' && argv[i + 1]) {
-      rosterPath = resolve(argv[++i])
-    } else if (argv[i] === '--preset' && argv[i + 1]) {
-      presetName = argv[++i]
-    } else if (argv[i] === '--out' && argv[i + 1]) {
-      outDir = resolve(argv[++i])
-    } else if (argv[i] === '--seeds' && argv[i + 1]) {
-      seedsCount = parseInt(argv[++i], 10)
-    } else if (argv[i] === '--live') {
-      live = true
-    }
-  }
-
-  if (!rosterPath) {
-    console.error('Error: --roster is required')
-    process.exit(1)
-  }
-  if (!presetName) {
-    console.error('Error: --preset is required')
-    process.exit(1)
-  }
-  if (!outDir) {
-    console.error('Error: --out is required')
-    process.exit(1)
-  }
-
-  const preset = presetName as PresetName
-  if (!PRESETS[preset]) {
-    console.error(`Error: unknown preset "${presetName}". Use: duel, blitz, survival`)
-    process.exit(1)
-  }
-
-  const rosterRaw = readFileSync(rosterPath, 'utf-8')
-  const roster: RosterFile = JSON.parse(rosterRaw)
-  const players = roster.players
-  const playerCount = getPlayerCount(preset)
-
-  if (players.length < playerCount) {
-    console.error(`Error: roster needs at least ${playerCount} players for ${preset} preset, got ${players.length}`)
-    process.exit(1)
-  }
-
-  const seeds = seedsCount !== undefined ? SEED_SUITE.slice(0, seedsCount) : SEED_SUITE
-
+function buildSchedule(preset: PresetName, seeds: number[], players: RosterPlayer[]): ScheduledMatch[] {
   const schedule: ScheduledMatch[] = []
 
   if (preset === 'survival') {
@@ -171,6 +100,62 @@ export async function runBatch(argv: string[]): Promise<void> {
     }
   }
 
+  return schedule
+}
+
+export async function runExhibition(argv: string[]): Promise<void> {
+  let presetName: string | undefined
+  let outDir: string | undefined
+  let seedsCount: number | undefined
+
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === '--preset' && argv[i + 1]) {
+      presetName = argv[++i]
+    } else if (argv[i] === '--out' && argv[i + 1]) {
+      outDir = resolve(argv[++i])
+    } else if (argv[i] === '--seeds' && argv[i + 1]) {
+      seedsCount = parseInt(argv[++i], 10)
+    }
+  }
+
+  if (!presetName) {
+    console.error('Error: --preset is required')
+    process.exit(1)
+  }
+  if (!outDir) {
+    console.error('Error: --out is required')
+    process.exit(1)
+  }
+
+  const preset = presetName as PresetName
+  if (!PRESETS[preset]) {
+    console.error(`Error: unknown preset "${presetName}". Use: duel, blitz, survival`)
+    process.exit(1)
+  }
+
+  const playerCount = getPlayerCount(preset)
+
+  // Build fixed roster
+  const players: RosterPlayer[] = [
+    { label: 'Aggressive Bot', scripted: 'aggressive' },
+    { label: 'Conservative Bot', scripted: 'conservative' },
+  ]
+
+  if (preset === 'survival') {
+    players.push(
+      { label: 'Aggressive Bot 2', scripted: 'aggressive' },
+      { label: 'Conservative Bot 2', scripted: 'conservative' },
+    )
+  }
+
+  if (players.length < playerCount) {
+    console.error(`Error: roster needs at least ${playerCount} players for ${preset} preset, got ${players.length}`)
+    process.exit(1)
+  }
+
+  const seeds: number[] = seedsCount !== undefined ? SEED_SUITE.slice(0, seedsCount) : [...SEED_SUITE]
+  const schedule = buildSchedule(preset, seeds, players)
+
   const total = schedule.length
   mkdirSync(outDir, { recursive: true })
 
@@ -187,18 +172,10 @@ export async function runBatch(argv: string[]): Promise<void> {
 
     const agents = entry.players.map((p, i) => {
       const tankId = `tank-${i}`
-      if (p.scripted) {
-        if (p.scripted === 'aggressive') {
-          return createAggressiveAgent(tankId)
-        }
-        return createConservativeAgent(tankId)
+      if (p.scripted === 'aggressive') {
+        return createAggressiveAgent(tankId)
       }
-      if (p.model && live) {
-        const model = createModel(p.model)
-        const systemPrompt = buildSystemPrompt(config, p.label)
-        return new ModelBackedTankAgent(p.label, model, systemPrompt, config.maxToolCallsPerTurn)
-      }
-      return alwaysPassAgent(p.label)
+      return createConservativeAgent(tankId)
     })
 
     const progressLabels = entry.players.map((p) => p.label).join(' vs ')
@@ -256,5 +233,60 @@ export async function runBatch(argv: string[]): Promise<void> {
   }
 
   writeFileSync(`${outDir}/batch-manifest.json`, JSON.stringify(manifest, null, 2))
-  console.log(`Batch complete: ${completed}/${total} matches in ${outDir}`)
+
+  // Run aggregation to produce summary.json
+  const manifestMap = new Map<number, { matchId: number; seatAssignment: Record<number, string> }>()
+  for (const sa of manifest) {
+    manifestMap.set(sa.matchId, { matchId: sa.matchId, seatAssignment: sa.seatAssignment })
+  }
+
+  const logs: import('../types/log.js').MatchLog[] = []
+  for (const entry of manifest) {
+    if (entry.failure) continue
+    const logPath = `${outDir}/match-${String(entry.matchId).padStart(3, '0')}.json`
+    const raw = readFileSync(logPath, 'utf-8')
+    logs.push(JSON.parse(raw) as import('../types/log.js').MatchLog)
+  }
+
+  const seatAssignments = manifest.map((e) => ({
+    matchId: e.matchId,
+    seatAssignment: e.seatAssignment,
+  }))
+
+  const summary = aggregateLogs(logs, seatAssignments, preset)
+  writeFileSync(`${outDir}/summary.json`, JSON.stringify(summary, null, 2))
+
+  // Write exhibition-info.json
+  const uniqueSeeds = [...new Set(manifest.map((m) => m.seed))]
+  const exhibitionInfo = {
+    type: 'scripted' as const,
+    preset: presetName,
+    rulesVersion: 'v1',
+    generatorVersion: 'v1',
+    promptVersion: 'v1',
+    engineVersion: VERSION,
+    timestamp: new Date().toISOString(),
+    seedSuite: [...SEED_SUITE],
+    seedsUsed: uniqueSeeds,
+    roster: players.map((p) => ({
+      label: p.label,
+      scripted: p.scripted,
+    })),
+    totalMatches: total,
+    completedMatches: completed,
+    adapterVersions: {},
+  }
+  writeFileSync(`${outDir}/exhibition-info.json`, JSON.stringify(exhibitionInfo, null, 2))
+
+  console.log(`Exhibition complete: ${completed}/${total} matches in ${outDir}`)
+
+  // Print summary
+  console.log(`Matches: ${summary.matchesTotal} | Seeds: ${summary.seedCount}`)
+  for (const [label, stats] of Object.entries(summary.perPlayer)) {
+    const wr = (stats.winRate * 100).toFixed(1)
+    console.log(`  ${label}: WR ${wr}%, ${stats.winCount}/${stats.matchCount}, dmg ${stats.totalDamageDealt}, hits ${stats.totalHitsLanded}`)
+  }
+  if (summary.reconciliation.matchCountMatches && summary.reconciliation.damageMatches && summary.reconciliation.hitsMatches) {
+    console.log('  Reconciliation: ok')
+  }
 }
