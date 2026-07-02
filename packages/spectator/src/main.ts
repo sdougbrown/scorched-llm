@@ -1,3 +1,482 @@
-import { VERSION } from '@scorched-llm/engine'
+import { createArenaRenderer } from './arena.js'
+import type { ArenaRenderer } from './arena.js'
+import { createTimeline } from './timeline.js'
+import type { Timeline } from './timeline.js'
+import { AnimationScheduler } from './animation.js'
+import { createMatchLoader } from './match-loader.js'
+import { createControls } from './controls.js'
+import { createTracePanel } from './trace-panel.js'
+import { updateStatsOverlay } from './stats-overlay.js'
+import type { MatchLog } from '@scorched-llm/engine'
 
-document.getElementById('app')!.textContent = `Spectator v${VERSION}`
+const stateRef: { current: AppState | null } = { current: null }
+
+const CSS = `
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: #0d0d1a;
+  color: #e0e0e0;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+}
+
+.app__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: #1a1a2e;
+  border-bottom: 1px solid #2a2a4a;
+  min-height: 36px;
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.app__header__title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #7f5af0;
+  white-space: nowrap;
+}
+
+.app__header__info {
+  font-size: 12px;
+  color: #888;
+  margin-left: 12px;
+  white-space: nowrap;
+}
+
+.app__header__spacer {
+  flex: 1;
+}
+
+.app__btn {
+  background: #2a2a3e;
+  color: #ddd;
+  border: 1px solid #444;
+  border-radius: 4px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  transition: background 0.15s;
+}
+
+.app__btn:hover {
+  background: #3a3a5e;
+}
+
+.app__arena-container {
+  flex: 1 1 auto;
+  position: relative;
+  overflow: hidden;
+  background: #0a0a14;
+  min-width: 0;
+}
+
+.app__arena-container canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.app__traces {
+  width: 360px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  overflow-y: auto;
+  background: #0d0d1a;
+  border-left: 1px solid #2a2a4a;
+}
+
+.app__controls {
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.app__stats {
+  flex-shrink: 0;
+  max-height: 45vh;
+  overflow-y: auto;
+  z-index: 10;
+}
+
+.app__stats--hidden {
+  display: none;
+}
+
+.app__loader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 10, 20, 0.9);
+  z-index: 100;
+  transition: opacity 0.2s ease;
+}
+
+.app__loader--hidden {
+  display: none;
+}
+
+.app__error {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 10, 20, 0.95);
+  z-index: 200;
+}
+
+.app__error--hidden {
+  display: none;
+}
+
+.app__error__message {
+  color: #e74c3c;
+  font-size: 16px;
+  text-align: center;
+  padding: 24px;
+  background: #1a1a2e;
+  border: 1px solid #e74c3c;
+  border-radius: 8px;
+  max-width: 500px;
+}
+`
+
+let stylesheetInjected = false
+
+function ensureStylesheet(): void {
+  if (stylesheetInjected) return
+  const styleEl = document.createElement('style')
+  styleEl.textContent = CSS
+  document.head.appendChild(styleEl)
+  stylesheetInjected = true
+}
+
+interface AppState {
+  log: MatchLog | null
+  scheduler: AnimationScheduler | null
+  timeline: Timeline | null
+  renderer: ArenaRenderer | null
+  controlsEl: HTMLElement | null
+  tracePanels: Map<string, HTMLElement>
+  statsEl: HTMLElement | null
+  loaderEl: HTMLElement | null
+  errorEl: HTMLElement | null
+  posIndex: number
+  resizeHandler: (() => void) | null
+}
+
+function buildApp(): AppState {
+  ensureStylesheet()
+
+  const root = document.getElementById('app')
+  if (!root) {
+    throw new Error('#app element not found')
+  }
+
+  root.innerHTML = ''
+  root.className = 'app'
+
+  const state: AppState = {
+    log: null,
+    scheduler: null,
+    timeline: null,
+    renderer: null,
+    controlsEl: null,
+    tracePanels: new Map(),
+    statsEl: null,
+    loaderEl: null,
+    errorEl: null,
+    posIndex: 0,
+    resizeHandler: null,
+  }
+
+  // Header
+  const header = document.createElement('div')
+  header.className = 'app__header'
+
+  const titleEl = document.createElement('span')
+  titleEl.className = 'app__header__title'
+  titleEl.textContent = 'Spectator'
+
+  const infoEl = document.createElement('span')
+  infoEl.className = 'app__header__info'
+
+  const spacer = document.createElement('div')
+  spacer.className = 'app__header__spacer'
+
+  const statsToggleBtn = document.createElement('button')
+  statsToggleBtn.className = 'app__btn'
+  statsToggleBtn.textContent = 'Stats'
+  statsToggleBtn.addEventListener('click', (): void => {
+    if (state.statsEl) {
+      state.statsEl.classList.toggle('app__stats--hidden')
+    }
+  })
+
+  header.append(titleEl, infoEl, spacer, statsToggleBtn)
+  root.appendChild(header)
+
+  // Arena container
+  const arenaContainer = document.createElement('div')
+  arenaContainer.className = 'app__arena-container'
+
+  const canvas = document.createElement('canvas')
+  arenaContainer.appendChild(canvas)
+
+  root.appendChild(arenaContainer)
+
+  // Traces panel
+  const tracesEl = document.createElement('div')
+  tracesEl.className = 'app__traces'
+  root.appendChild(tracesEl)
+
+  // Controls placeholder — will be replaced on match load
+  const controlsPlaceholder = document.createElement('div')
+  controlsPlaceholder.className = 'app__controls'
+  root.appendChild(controlsPlaceholder)
+  state.controlsEl = controlsPlaceholder
+
+  // Stats overlay
+  const statsEl = document.createElement('div')
+  statsEl.className = 'app__stats app__stats--hidden'
+  root.appendChild(statsEl)
+  state.statsEl = statsEl
+
+  // Loader overlay
+  const loaderEl = document.createElement('div')
+  loaderEl.className = 'app__loader'
+  root.appendChild(loaderEl)
+  state.loaderEl = loaderEl
+
+  // Error overlay (hidden by default)
+  const errorEl = document.createElement('div')
+  errorEl.className = 'app__error app__error--hidden'
+  const errorMsg = document.createElement('div')
+  errorMsg.className = 'app__error__message'
+  errorEl.appendChild(errorMsg)
+  root.appendChild(errorEl)
+  state.errorEl = errorEl
+
+  // Match loader widget — placed inside loader overlay
+  const matchLoader = createMatchLoader((log: MatchLog): void => {
+    onLoadMatch(state, log, {
+      arenaContainer,
+      canvas,
+      tracesEl,
+      controlsPlaceholder,
+      headerInfo: infoEl,
+    })
+  })
+  loaderEl.appendChild(matchLoader)
+
+  return state
+}
+
+interface BuildContext {
+  arenaContainer: HTMLDivElement
+  canvas: HTMLCanvasElement
+  tracesEl: HTMLDivElement
+  controlsPlaceholder: HTMLDivElement
+  headerInfo: HTMLSpanElement
+}
+
+function onLoadMatch(
+  state: AppState,
+  log: MatchLog,
+  ctx: BuildContext,
+): void {
+  // Hide loader
+  state.loaderEl!.innerHTML = ''
+  state.loaderEl!.classList.add('app__loader--hidden')
+
+  // Update header
+  ctx.headerInfo.textContent = `${log.metadata.matchId} — ${log.turns.length} turns`
+
+  // Create scheduler
+  const scheduler = new AnimationScheduler()
+  state.scheduler = scheduler
+
+  // Create timeline
+  const timeline = createTimeline(log)
+  state.timeline = timeline
+
+  // Create renderer
+  const renderer = createArenaRenderer(ctx.canvas)
+  state.renderer = renderer
+
+  // Resize handler
+  function onResize(): void {
+    const rect = ctx.arenaContainer.getBoundingClientRect()
+    renderer.setSize(rect.width, rect.height)
+  }
+  onResize()
+  window.addEventListener('resize', onResize)
+  state.resizeHandler = onResize
+
+  // Start scheduler
+  scheduler.play(timeline, renderer, log.config, 30)
+
+  // Replace controls placeholder with real controls
+  const controls = createControls(scheduler, timeline)
+  ctx.controlsPlaceholder.replaceWith(controls)
+  state.controlsEl = controls
+
+  // Create trace panels for each tank
+  state.tracePanels.clear()
+  ctx.tracesEl.innerHTML = ''
+
+  for (const tank of log.initialState.tanks) {
+    const panel = createTracePanel(tank.id)
+    state.tracePanels.set(tank.id, panel)
+    ctx.tracesEl.appendChild(panel)
+  }
+
+  // Update stats overlay content
+  state.statsEl!.classList.remove('app__stats--hidden')
+  updateStatsOverlay(state.statsEl!, log)
+
+  // Initialize trace panels to empty
+  for (const [, panel] of state.tracePanels) {
+    const content = panel.querySelector('.trace-panel__content')
+    if (content && typeof content === 'object' && 'innerHTML' in content) {
+      ;(content as HTMLElement).innerHTML = '<div class="trace-panel__empty">No data yet</div>'
+    }
+  }
+
+  state.log = log
+}
+
+function setupKeyboard(): void {
+  function matchesShortcut(e: KeyboardEvent, key: string, mod?: boolean): boolean {
+    if (e.key !== key) return false
+    if (mod && !e.metaKey && !e.ctrlKey) return false
+    if (!mod && (e.metaKey || e.ctrlKey)) return false
+    return true
+  }
+
+  const shortcuts: Array<{ key: string; mod?: boolean; run: () => void }> = [
+    {
+      key: ' ',
+      run(): void {
+        const s = stateRef.current
+        if (!s?.scheduler) return
+        if (s.scheduler.isPlaying) {
+          s.scheduler.pause()
+        } else {
+          s.scheduler.resume()
+        }
+      },
+    },
+    {
+      key: 'ArrowLeft',
+      run(): void {
+        const s = stateRef.current
+        if (!s?.timeline || !s?.renderer || !s?.log) return
+        const pos = s.timeline.prev()
+        s.renderer.render(pos.state, s.log.config, { showFog: true, showTrajectories: false, animate: true })
+        s.posIndex = Number(pos.action < 0 ? 0 : pos.turn + pos.action + 1)
+        if (s.scheduler) {
+          s.scheduler.stop()
+          s.scheduler.pause()
+        }
+      },
+    },
+    {
+      key: 'ArrowRight',
+      run(): void {
+        const s = stateRef.current
+        if (!s?.timeline || !s?.renderer || !s?.log) return
+        const pos = s.timeline.next()
+        s.renderer.render(pos.state, s.log.config, { showFog: true, showTrajectories: false, animate: true })
+        s.posIndex = Number(pos.action < 0 ? 0 : pos.turn + pos.action + 1)
+        if (s.scheduler) {
+          s.scheduler.stop()
+          s.scheduler.pause()
+        }
+      },
+    },
+    {
+      key: 'Home',
+      run(): void {
+        const s = stateRef.current
+        if (!s?.timeline || !s?.renderer || !s?.log) return
+        const pos = s.timeline.seek(0)
+        s.renderer.render(pos.state, s.log.config, { showFog: true, showTrajectories: false, animate: true })
+        s.posIndex = 0
+        if (s.scheduler) {
+          s.scheduler.stop()
+          s.scheduler.pause()
+        }
+      },
+    },
+    {
+      key: 'End',
+      run(): void {
+        const s = stateRef.current
+        if (!s?.timeline || !s?.renderer || !s?.log) return
+        const lastPos = s.timeline.length() - 1
+        const pos = s.timeline.seek(lastPos)
+        s.renderer.render(pos.state, s.log.config, { showFog: true, showTrajectories: false, animate: true })
+        s.posIndex = lastPos
+        if (s.scheduler) {
+          s.scheduler.stop()
+          s.scheduler.pause()
+        }
+      },
+    },
+    {
+      key: 'Escape',
+      run(): void {
+        const s = stateRef.current
+        if (!s?.statsEl) return
+        s.statsEl.classList.toggle('app__stats--hidden')
+      },
+    },
+  ]
+
+  function handler(e: KeyboardEvent): void {
+    for (const shortcut of shortcuts) {
+      if (matchesShortcut(e, shortcut.key, shortcut.mod)) {
+        e.preventDefault()
+        e.stopPropagation()
+        shortcut.run()
+        break
+      }
+    }
+  }
+
+  window.addEventListener('keydown', handler)
+}
+
+export function initApp(): AppState {
+  const appState = buildApp()
+  stateRef.current = appState
+  setupKeyboard()
+  return appState
+}
+
+initApp()
