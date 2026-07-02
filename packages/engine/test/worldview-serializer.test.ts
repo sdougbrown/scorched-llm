@@ -32,7 +32,7 @@ describe('serializeWorldView', () => {
   it('includes tank position, HP, and facing', () => {
     const result = serializeWorldView(makeWorldView({ position: { x: 5, y: 3 }, hp: 2, facing: 90 }))
     expect(result).toContain('(5, 3)')
-    expect(result).toContain('HP: 2/2')
+    expect(result).toContain('HP: 2')
     expect(result).toContain('facing: 90°')
   })
 

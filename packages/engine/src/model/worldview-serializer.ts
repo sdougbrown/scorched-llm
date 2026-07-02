@@ -7,7 +7,7 @@ export function serializeWorldView(view: WorldView): string {
 
   // Header
   lines.push(`=== Turn ${view.turn} ===`)
-  lines.push(`Your tank is at (${view.position.x}, ${view.position.y}), HP: ${view.hp}/${view.hp}, facing: ${view.facing}°`)
+  lines.push(`Your tank is at (${view.position.x}, ${view.position.y}), HP: ${view.hp}, facing: ${view.facing}°`)
   lines.push(`You have ${view.remainingActions} action(s) remaining this turn.`)
   lines.push('')
 
