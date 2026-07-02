@@ -1,7 +1,7 @@
-import type { MatchLog, MatchConfig } from '@scorched-llm/engine'
+import type { MatchLog } from '@scorched-llm/engine'
 
 type UnknownRecord = Record<string, unknown>
-type UnknownArray = unknown[]
+
 
 function isString(val: unknown): val is string {
   return typeof val === 'string'

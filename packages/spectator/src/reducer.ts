@@ -1,4 +1,4 @@
-import type { MatchLog, GameState, ActionEvent } from '@scorched-llm/engine'
+import type { MatchLog, GameState } from '@scorched-llm/engine'
 
 export function reduceToState(log: MatchLog, turnIndex: number, actionIndex: number): GameState {
   const clampedTurn = Math.max(0, Math.min(turnIndex, log.turns.length - 1))

@@ -1,4 +1,4 @@
-import type { GameState, TankState, FlareState, MatchConfig, Coordinate, Cell, TerrainKind } from '@scorched-llm/engine'
+import type { GameState, MatchConfig, Cell } from '@scorched-llm/engine'
 
 export interface RenderOptions {
   showFog: boolean
@@ -97,7 +97,7 @@ export function createArenaRenderer(canvas: HTMLCanvasElement): ArenaRenderer {
   }
 
   function drawTerrain(state: GameState): void {
-    const { terrain, rulesVersion } = state
+    const { terrain } = state
     if (!terrain || terrain.length === 0) return
 
     const mapHeight = terrain.length
