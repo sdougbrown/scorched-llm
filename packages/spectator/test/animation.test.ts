@@ -1,14 +1,14 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { AnimationScheduler } from '../src/animation.js'
-import type { Timeline, TimelinePosition } from '../src/timeline.js'
+import type { Timeline } from '../src/timeline.js'
 import type { ArenaRenderer } from '../src/arena.js'
 import type { MatchConfig } from '@scorched-llm/engine'
 
 function makeMockTimeline(): Timeline {
   return {
-    seek: vi.fn((pos: number) => ({ turn: 0, action: pos, state: { turn: 0, currentPlayerIndex: 0, tanks: [], flares: [], terrain: [], rulesVersion: '1.0.0' } })),
-    next: vi.fn(() => ({ turn: 0, action: 0, state: { turn: 0, currentPlayerIndex: 0, tanks: [], flares: [], terrain: [], rulesVersion: '1.0.0' } })),
-    prev: vi.fn(() => ({ turn: 0, action: 0, state: { turn: 0, currentPlayerIndex: 0, tanks: [], flares: [], terrain: [], rulesVersion: '1.0.0' } })),
+    seek: vi.fn((pos: number) => ({ turn: 0, action: pos, state: { turn: 0, currentPlayerIndex: 0, tanks: [], flares: [], terrain: [], rulesVersion: '' } })),
+    next: vi.fn(() => ({ turn: 0, action: 0, state: { turn: 0, currentPlayerIndex: 0, tanks: [], flares: [], terrain: [], rulesVersion: '' } })),
+    prev: vi.fn(() => ({ turn: 0, action: 0, state: { turn: 0, currentPlayerIndex: 0, tanks: [], flares: [], terrain: [], rulesVersion: '' } })),
     length: vi.fn(() => 5),
   }
 }
@@ -49,8 +49,6 @@ describe('AnimationScheduler', () => {
 
   beforeEach(() => {
     vi.useFakeTimers()
-    // Mock performance.now so the timing check passes on first call
-    vi.spyOn(performance, 'now').mockReturnValue(1000)
     scheduler = new AnimationScheduler()
     mockTimeline = makeMockTimeline()
     mockRenderer = makeMockRenderer()
@@ -65,9 +63,11 @@ describe('AnimationScheduler', () => {
     expect(scheduler.isPlaying).toBe(false)
   })
 
-  it('play starts playing and calls render', () => {
+  it('play starts playing', () => {
     scheduler.play(mockTimeline, mockRenderer, config, 10)
     expect(scheduler.isPlaying).toBe(true)
+    // Advance time past frame interval (100ms for 10fps) to trigger render
+    vi.advanceTimersByTime(100)
     expect(mockRenderer.render).toHaveBeenCalled()
   })
 
@@ -82,6 +82,8 @@ describe('AnimationScheduler', () => {
     scheduler.pause()
     scheduler.resume()
     expect(scheduler.isPlaying).toBe(true)
+    vi.advanceTimersByTime(100)
+    expect(mockRenderer.render).toHaveBeenCalled()
   })
 
   it('stop resets everything', () => {
