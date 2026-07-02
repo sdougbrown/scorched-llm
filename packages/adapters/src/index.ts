@@ -1,3 +1,4 @@
+import type { GameState, ToolCall } from '@scorched-llm/engine'
 import { VERSION as ENGINE_VERSION } from '@scorched-llm/engine'
 
 export const VERSION = '0.0.0'
@@ -6,8 +7,8 @@ export const VERSION = '0.0.0'
 export interface ModelAdapter {
   /** Unique identifier for this adapter. */
   id: string
-  /** Generate a move given the current game state. */
-  generateMove(state: import('@scorched-llm/engine').GameState): Promise<import('@scorched-llm/engine').Move>
+  /** Generate tool calls given the current game state. */
+  generateMove(state: GameState): Promise<ToolCall[]>
 }
 
 /** Verify the engine version is available. */
