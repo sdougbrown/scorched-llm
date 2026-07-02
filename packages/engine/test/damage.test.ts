@@ -18,7 +18,7 @@ describe('applyDamage — HP reduction', () => {
     const state = createState([
       { id: 't1', position: { x: 5, y: 5 }, hp: 5, maxHp: 5, alive: true, facing: 0, damageDealt: 0, hitsLanded: 0 },
     ])
-    const { newState } = applyDamage(state, 't1', 2)
+    const { newState } = applyDamage(state, 't1', 'firer', 2)
     expect(newState.tanks[0].hp).toBe(3)
   })
 
@@ -26,7 +26,7 @@ describe('applyDamage — HP reduction', () => {
     const state = createState([
       { id: 't1', position: { x: 5, y: 5 }, hp: 1, maxHp: 2, alive: true, facing: 0, damageDealt: 0, hitsLanded: 0 },
     ])
-    const { newState } = applyDamage(state, 't1', 1)
+    const { newState } = applyDamage(state, 't1', 'firer', 1)
     expect(newState.tanks[0].hp).toBe(0)
   })
 
@@ -35,7 +35,7 @@ describe('applyDamage — HP reduction', () => {
       { id: 't1', position: { x: 5, y: 5 }, hp: 5, maxHp: 5, alive: true, facing: 0, damageDealt: 0, hitsLanded: 0 },
       { id: 't2', position: { x: 10, y: 10 }, hp: 3, maxHp: 3, alive: true, facing: 180, damageDealt: 0, hitsLanded: 0 },
     ])
-    const { newState } = applyDamage(state, 't2', 1)
+    const { newState } = applyDamage(state, 't2', 'firer', 1)
     expect(newState.tanks[0].hp).toBe(5)
     expect(newState.tanks[1].hp).toBe(2)
   })
@@ -46,7 +46,7 @@ describe('applyDamage — elimination', () => {
     const state = createState([
       { id: 't1', position: { x: 5, y: 5 }, hp: 1, maxHp: 2, alive: true, facing: 0, damageDealt: 0, hitsLanded: 0 },
     ])
-    const { newState, eliminated } = applyDamage(state, 't1', 1)
+    const { newState, eliminated } = applyDamage(state, 't1', 'firer', 1)
     expect(eliminated).toBe('t1')
     expect(newState.tanks[0].alive).toBe(false)
   })
@@ -55,7 +55,7 @@ describe('applyDamage — elimination', () => {
     const state = createState([
       { id: 't1', position: { x: 5, y: 5 }, hp: 5, maxHp: 5, alive: true, facing: 0, damageDealt: 0, hitsLanded: 0 },
     ])
-    const { eliminated } = applyDamage(state, 't1', 1)
+    const { eliminated } = applyDamage(state, 't1', 'firer', 1)
     expect(eliminated).toBeNull()
   })
 
@@ -63,7 +63,7 @@ describe('applyDamage — elimination', () => {
     const state = createState([
       { id: 't1', position: { x: 5, y: 5 }, hp: 0, maxHp: 2, alive: false, facing: 0, damageDealt: 0, hitsLanded: 0 },
     ])
-    const { eliminated } = applyDamage(state, 't1', 1)
+    const { eliminated } = applyDamage(state, 't1', 'firer', 1)
     expect(eliminated).toBeNull()
   })
 
@@ -71,9 +71,31 @@ describe('applyDamage — elimination', () => {
     const state = createState([
       { id: 't1', position: { x: 5, y: 5 }, hp: 2, maxHp: 2, alive: true, facing: 0, damageDealt: 0, hitsLanded: 0 },
     ])
-    const { newState, eliminated } = applyDamage(state, 't1', 5)
+    const { newState, eliminated } = applyDamage(state, 't1', 'firer', 5)
     expect(eliminated).toBe('t1')
     expect(newState.tanks[0].hp).toBe(0)
+  })
+})
+
+describe('applyDamage — firer stats', () => {
+  it('increments firer hitsLanded and damageDealt', () => {
+    const state = createState([
+      { id: 't1', position: { x: 5, y: 5 }, hp: 5, maxHp: 5, alive: true, facing: 0, damageDealt: 0, hitsLanded: 0 },
+      { id: 'firer', position: { x: 0, y: 0 }, hp: 5, maxHp: 5, alive: true, facing: 90, damageDealt: 0, hitsLanded: 0 },
+    ])
+    const { newState } = applyDamage(state, 't1', 'firer', 3)
+    expect(newState.tanks[1].hitsLanded).toBe(1)
+    expect(newState.tanks[1].damageDealt).toBe(3)
+  })
+
+  it('caps damageDealt at target HP (overkill)', () => {
+    const state = createState([
+      { id: 't1', position: { x: 5, y: 5 }, hp: 2, maxHp: 2, alive: true, facing: 0, damageDealt: 0, hitsLanded: 0 },
+      { id: 'firer', position: { x: 0, y: 0 }, hp: 5, maxHp: 5, alive: true, facing: 90, damageDealt: 0, hitsLanded: 0 },
+    ])
+    const { newState } = applyDamage(state, 't1', 'firer', 10)
+    expect(newState.tanks[1].damageDealt).toBe(2)
+    expect(newState.tanks[1].hitsLanded).toBe(1)
   })
 })
 
@@ -82,7 +104,7 @@ describe('applyDamage — unknown tank', () => {
     const state = createState([
       { id: 't1', position: { x: 5, y: 5 }, hp: 2, maxHp: 2, alive: true, facing: 0, damageDealt: 0, hitsLanded: 0 },
     ])
-    const { newState, eliminated } = applyDamage(state, 'unknown', 1)
+    const { newState, eliminated } = applyDamage(state, 'unknown', 'firer', 1)
     expect(newState.tanks[0].hp).toBe(2)
     expect(eliminated).toBeNull()
   })
@@ -94,7 +116,7 @@ describe('applyDamage — immutability', () => {
       { id: 't1', position: { x: 5, y: 5 }, hp: 2, maxHp: 2, alive: true, facing: 0, damageDealt: 0, hitsLanded: 0 },
     ])
     const originalHp = state.tanks[0].hp
-    applyDamage(state, 't1', 1)
+    applyDamage(state, 't1', 'firer', 1)
     expect(state.tanks[0].hp).toBe(originalHp)
   })
 })

@@ -65,11 +65,15 @@ describe('fireFlare — activation', () => {
     expect(newState.flares[0].radius).toBe(2)
   })
 
-  it('sets expiryTurn correctly', () => {
-    const state = createState([{ id: 't1', position: { x: 5, y: 5 }, hp: 2, maxHp: 2, alive: true, facing: 0, damageDealt: 0, hitsLanded: 0 }], 5)
+  it('sets expiryTurn to firer next scheduled turn', () => {
+    const tanks: TankState[] = [
+      { id: 't1', position: { x: 5, y: 5 }, hp: 2, maxHp: 2, alive: true, facing: 0, damageDealt: 0, hitsLanded: 0 },
+      { id: 't2', position: { x: 0, y: 0 }, hp: 2, maxHp: 2, alive: true, facing: 90, damageDealt: 0, hitsLanded: 0 },
+    ]
+    const state = createState(tanks, 5)
     const { newState } = fireFlare(state, config, 't1', 'N', 3)
     expect(newState.flares[0].activatedTurn).toBe(5)
-    expect(newState.flares[0].expiryTurn).toBe(25)
+    expect(newState.flares[0].expiryTurn).toBe(7)
   })
 
   it('returns revealed cells within flare radius', () => {

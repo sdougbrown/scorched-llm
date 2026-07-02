@@ -53,15 +53,19 @@ export function fireFlare(
     }
   }
 
+  // Expiry = firer's next scheduled turn (absolute turn-sequence boundary).
+  // For N players, the firer's next turn is currentTurn + N.
+  // This is not a decrementing counter — it remains scheduled even if the firer dies.
+  const playerCount = state.tanks.length
+  const expiryTurn = state.turn + playerCount
+
   const flare: FlareState = {
     id: nextFlareId(state),
     targetCell,
     radius: config.fog.flareRadius,
     firerId,
     activatedTurn: state.turn,
-    expiryTurn: state.turn + config.fog.flareDuration === 'one-round-global'
-      ? state.turn + config.turnLimit
-      : state.turn + config.turnLimit,
+    expiryTurn,
   }
 
   const newState = cloneGameState(state)

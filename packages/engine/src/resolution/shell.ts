@@ -102,9 +102,10 @@ export function fireShell(
     for (const tank of state.tanks) {
       if (tank.id === firerId || !tank.alive) continue
       if (tank.position.x === cell.x && tank.position.y === cell.y) {
+        const damage = Math.ceil(tank.maxHp / config.lethality.hitsToKill)
         return {
           newState: state,
-          result: hit(tank.id, 1),
+          result: hit(tank.id, damage),
           trajectory: { sampledCells, impactPoint: cell },
         }
       }

@@ -2,10 +2,11 @@ import type { GameState } from '../types/state.js'
 
 export function applyDamage(
   state: GameState,
-  tankId: string,
+  targetId: string,
+  firerId: string,
   damage: number,
 ): { newState: GameState; eliminated: string | null } {
-  const tankIndex = state.tanks.findIndex((t) => t.id === tankId)
+  const tankIndex = state.tanks.findIndex((t) => t.id === targetId)
   if (tankIndex === -1) {
     return { newState: state, eliminated: null }
   }
@@ -18,18 +19,24 @@ export function applyDamage(
   const newState: GameState = {
     ...state,
     tanks: state.tanks.map((t) => {
-      if (t.id !== tankId) return t
-      const newHp = t.hp - damage
-      if (newHp <= 0) {
-        return { ...t, hp: 0, alive: false, hitsLanded: t.hitsLanded + 1, damageDealt: t.damageDealt + damage }
+      if (t.id === targetId) {
+        const newHp = t.hp - damage
+        return { ...t, hp: Math.max(0, newHp), alive: newHp > 0 }
       }
-      return { ...t, hp: newHp, hitsLanded: t.hitsLanded + 1, damageDealt: t.damageDealt + damage }
+      if (t.id === firerId) {
+        return {
+          ...t,
+          hitsLanded: t.hitsLanded + 1,
+          damageDealt: t.damageDealt + Math.min(damage, target.hp),
+        }
+      }
+      return t
     }),
   }
 
   const newTarget = newState.tanks[tankIndex]
   return {
     newState,
-    eliminated: newTarget.alive ? null : tankId,
+    eliminated: newTarget.alive ? null : targetId,
   }
 }
