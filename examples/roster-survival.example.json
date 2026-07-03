@@ -1,0 +1,50 @@
+{
+  "players": [
+    {
+      "label": "GPT-5",
+      "model": {
+        "name": "gpt-5",
+        "baseURL": "https://api.openai.com/v1",
+        "apiKeyEnv": "OPENAI_API_KEY",
+        "model": "gpt-5",
+        "pricing": { "inputPerMillionUsd": 5, "outputPerMillionUsd": 15 }
+      }
+    },
+    {
+      "label": "Claude Sonnet 4.6",
+      "model": {
+        "name": "claude-sonnet-4-6",
+        "baseURL": "https://api.anthropic.com/v1",
+        "apiKeyEnv": "ANTHROPIC_API_KEY",
+        "model": "claude-sonnet-4-6",
+        "pricing": { "inputPerMillionUsd": 3, "outputPerMillionUsd": 15 }
+      }
+    },
+    {
+      "label": "Groq Llama 4 70B",
+      "model": {
+        "name": "groq-llama-4-70b",
+        "baseURL": "https://api.groq.com/openai/v1",
+        "apiKeyEnv": "GROQ_API_KEY",
+        "model": "llama4-70b-8192",
+        "pricing": { "inputPerMillionUsd": 0.59, "outputPerMillionUsd": 0.79 }
+      }
+    },
+    {
+      "label": "Aggressive Bot",
+      "scripted": "aggressive"
+    },
+    {
+      "label": "Aggressive Bot 2",
+      "scripted": "aggressive"
+    },
+    {
+      "label": "Conservative Bot",
+      "scripted": "conservative"
+    },
+    {
+      "label": "Conservative Bot 2",
+      "scripted": "conservative"
+    }
+  ]
+}

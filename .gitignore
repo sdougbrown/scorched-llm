@@ -22,3 +22,11 @@ Thumbs.db
 # env
 .env
 .env.local
+
+# local rosters & match configs — use *.local.json suffix
+# e.g. roster-myorg.local.json, match-gpt4o-vs-claude.local.json
+*.local.json
+
+# exhibition / batch output
+/exhibitions/
+/batch-output/

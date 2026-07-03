@@ -47,8 +47,8 @@ The exhibition tool is scripted-only by design. To run with model-backed agents,
 ```bash
 # Create a roster file
 echo '{"players": [
-  {"label": "GPT", "model": {"name": "gpt-4o", "baseURL": "...", "apiKeyEnv": "ANTHROPIC_API_KEY", "model": "gpt-4o"}},
-  {"label": "Claude", "model": {"name": "claude-3", "baseURL": "...", "apiKeyEnv": "ANTHROPIC_API_KEY", "model": "claude-3-opus"}}
+  {"label": "GPT", "model": {"name": "gpt-5", "baseURL": "...", "apiKeyEnv": "OPENAI_API_KEY", "model": "gpt-5"}},
+  {"label": "Claude", "model": {"name": "claude-sonnet-4-6", "baseURL": "...", "apiKeyEnv": "ANTHROPIC_API_KEY", "model": "claude-sonnet-4-6"}}
 ]}' > roster.json
 
 # Run with live models
