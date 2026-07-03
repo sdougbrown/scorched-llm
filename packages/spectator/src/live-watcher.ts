@@ -58,7 +58,7 @@ export class LiveWatcher {
     if (this._isComplete) return
 
     this.fetchAndProcess().then(() => {
-      if (!this._isComplete && this.timerId !== null) {
+      if (!this._isComplete) {
         this.timerId = setTimeout(() => this.poll(), POLL_INTERVAL_MS)
       }
     })
