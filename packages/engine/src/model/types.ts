@@ -19,6 +19,7 @@ export interface NormalizedToolCall {
 /** Normalized model response — provider-agnostic. */
 export interface NormalizedModelResponse {
   assistantText?: string
+  reasoningContent?: string
   toolCalls: NormalizedToolCall[]
   tokensIn: number
   tokensOut: number

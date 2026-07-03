@@ -150,7 +150,8 @@ function getActionBudget(config: MatchConfig): number {
 }
 
 function getMoveBudget(config: MatchConfig): number {
-  return config.moveMax ?? config.fog.flareRadius
+  const maxPerMove = config.moveMax ?? config.fog.flareRadius
+  return maxPerMove * getActionBudget(config)
 }
 
 function getAliveCount(state: GameState): number {
@@ -301,6 +302,19 @@ function isFieldEnabled(
     }
   }
   return true
+}
+
+function validationFailureReason(call: ToolCall, conditions: TurnConditions): string {
+  if (conditions.remainingActions <= 0) {
+    return 'Action limit reached'
+  }
+  if (conditions.invalidStreak >= 3) {
+    return 'Three consecutive invalid calls'
+  }
+  if (call.tool.kind === 'move' && call.tool.distance > conditions.moveBudgetRemaining) {
+    return `Movement budget exceeded: ${conditions.moveBudgetRemaining} remaining, requested ${call.tool.distance}`
+  }
+  return 'Umpire validation failed'
 }
 
 function resolveAction(
@@ -528,9 +542,17 @@ export async function runMatch(
     )
     updateKnowledge(runner, currentTank.id, worldview)
 
+    log.liveState = {
+      status: 'thinking',
+      turn: runner.turnCursor,
+      player: currentTank.id,
+    }
+    onTurnComplete?.(log)
+
     const turnActions: ActionEvent[] = []
     let matchTermination: MatchResult | null = null
     let executedCallCount = 0
+    let offensiveActionTaken = false
 
     const executeTool = async (call: ToolCall) => {
       if (
@@ -560,10 +582,24 @@ export async function runMatch(
       }
 
       const umpireFields = buildUmpireFields(call)
-      const isValid = isFieldEnabled(umpireFields, conditions, config)
+      const maxPerMove = config.moveMax ?? config.fog.flareRadius
+      const exceedsPerMoveLimit =
+        call.tool.kind === 'move' && call.tool.distance > maxPerMove
+      const isOffensiveCall =
+        call.tool.kind === 'fire_flare' || call.tool.kind === 'fire_shell'
+      const repeatsOffensiveAction = isOffensiveCall && offensiveActionTaken
+      const isValid =
+        !exceedsPerMoveLimit &&
+        !repeatsOffensiveAction &&
+        isFieldEnabled(umpireFields, conditions, config)
 
       if (!isValid) {
-        const result = invalidResult('Umpire validation failed')
+        const reason = exceedsPerMoveLimit
+          ? `Move distance exceeds per-action maximum of ${maxPerMove}`
+          : repeatsOffensiveAction
+            ? 'Only one flare or shell may be fired per turn'
+          : validationFailureReason(call, conditions)
+        const result = invalidResult(reason)
         turnActions.push({
           kind: 'invalid',
           call,
@@ -603,6 +639,9 @@ export async function runMatch(
 
       const isObservation = kind === 'observation'
       const isBlocked = result.kind === 'blocked'
+      if (isOffensiveCall && !isBlocked) {
+        offensiveActionTaken = true
+      }
 
       if (isObservation) {
         runner.invalidStreak = 0
@@ -639,6 +678,7 @@ export async function runMatch(
     }
 
     const agentResult = await agents[runner.playerCursor].takeTurn(worldview, TOOLS, executeTool)
+    delete log.liveState
     const isStructuredResult = !Array.isArray(agentResult)
     const toolCalls = isStructuredResult ? agentResult.toolCalls : agentResult
 

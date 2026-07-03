@@ -124,6 +124,74 @@ describe('HttpModel', () => {
         await closeServer(result.server)
       }
     })
+
+    it('captures provider reasoning_content separately from assistant text', async () => {
+      const result = await createMockServer((_req, res) => {
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({
+          choices: [{
+            message: {
+              role: 'assistant',
+              reasoning_content: 'I should scout before firing.',
+              content: 'I will use a flare.',
+              tool_calls: null,
+            },
+            finish_reason: 'stop',
+          }],
+          usage: { prompt_tokens: 50, completion_tokens: 10 },
+        }))
+      })
+      try {
+        const model = new HttpModel(makeSpec({ baseURL: `http://127.0.0.1:${result.port}` }))
+        const response = await model.query(makeRequest())
+        expect(response.reasoningContent).toBe('I should scout before firing.')
+        expect(response.assistantText).toBe('I will use a flare.')
+      } finally {
+        await closeServer(result.server)
+      }
+    })
+
+    it('normalizes array-form tool calls encoded in message content', async () => {
+      const result = await createMockServer((_req, res) => {
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({
+          choices: [{
+            message: {
+              role: 'assistant',
+              content: JSON.stringify([
+                {
+                  type: 'tool_use',
+                  id: 'move-1',
+                  name: 'move',
+                  input: { direction: 'SE', distance: 3 },
+                },
+                {
+                  type: 'tool_use',
+                  id: 'look-1',
+                  name: 'look',
+                  input: {},
+                },
+              ]),
+              tool_calls: null,
+            },
+            finish_reason: 'stop',
+          }],
+          usage: { prompt_tokens: 50, completion_tokens: 20 },
+        }))
+      })
+      try {
+        const model = new HttpModel(makeSpec({ baseURL: `http://127.0.0.1:${result.port}` }))
+        const response = await model.query(makeRequest())
+
+        expect(response.assistantText).toBeUndefined()
+        expect(response.toolCalls).toEqual([
+          { id: 'move-1', name: 'move', arguments: { direction: 'SE', distance: 3 } },
+          { id: 'look-1', name: 'look', arguments: {} },
+        ])
+      } finally {
+        await closeServer(result.server)
+      }
+    })
   })
 
   describe('error handling', () => {
@@ -359,6 +427,34 @@ describe('HttpModel', () => {
         } finally {
           delete process.env.OPENAI_API_KEY
         }
+      } finally {
+        await closeServer(result.server)
+      }
+    })
+
+    it('passes provider-specific extra body fields through to the request', async () => {
+      let capturedBody: Record<string, unknown> | undefined
+      const result = await createMockServer((req, res) => {
+        let body = ''
+        req.on('data', (chunk) => { body += chunk })
+        req.on('end', () => {
+          capturedBody = JSON.parse(body)
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({
+            choices: [{ message: { role: 'assistant', content: 'ok' }, finish_reason: 'stop' }],
+          }))
+        })
+      })
+      try {
+        const model = new HttpModel(makeSpec({
+          baseURL: `http://127.0.0.1:${result.port}`,
+          extraBody: {
+            chat_template_kwargs: { enable_thinking: true },
+          },
+        }))
+        await model.query(makeRequest())
+
+        expect(capturedBody?.chat_template_kwargs).toEqual({ enable_thinking: true })
       } finally {
         await closeServer(result.server)
       }

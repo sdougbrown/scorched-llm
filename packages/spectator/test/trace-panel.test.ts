@@ -96,6 +96,26 @@ describe('updateTracePanel', () => {
     expect(pre?.textContent).toBe('Thinking about firing...')
   })
 
+  it('renders provider reasoning in a collapsed section', () => {
+    const turn = makeTurn({
+      modelTrace: {
+        toolCalls: [],
+        tokensIn: 100,
+        tokensOut: 50,
+        costUsd: 0.003,
+        latencyMs: 200,
+        finishReason: 'stop',
+        reasoningContent: 'The enemy is northwest, so I should reposition.',
+      },
+    })
+    updateTracePanel(panel, turn, 'tank-x')
+    const details = panel.querySelector('.trace-panel__reasoning') as HTMLDetailsElement
+    expect(details).not.toBeNull()
+    expect(details.open).toBe(false)
+    expect(details.querySelector('.trace-panel__reasoning-content')?.textContent)
+      .toBe('The enemy is northwest, so I should reposition.')
+  })
+
   it('renders tool call entries', () => {
     const turn = makeTurn({
       modelTrace: {
@@ -213,6 +233,28 @@ describe('updateTracePanel', () => {
     const resultSpan = panel.querySelector('.trace-panel__call-result')
     expect(resultSpan?.textContent).toContain('blocked')
     expect(resultSpan?.textContent).toContain('wall in the way')
+  })
+
+  it('shows obstacle impacts distinctly from invalid calls', () => {
+    const turn = makeTurn({
+      actions: [{
+        kind: 'shell',
+        call: { id: 'c1', tool: { kind: 'fire_shell', angle: 90, power: 5 } },
+        result: { kind: 'obstacle-hit', coordinate: { x: 6, y: 4 } },
+        snapshot: undefined,
+      }],
+      modelTrace: {
+        toolCalls: [{ id: 'c1', tool: { kind: 'fire_shell', angle: 90, power: 5 } }],
+        tokensIn: 100,
+        tokensOut: 50,
+        costUsd: 0.003,
+        latencyMs: 200,
+        finishReason: 'stop',
+      },
+    })
+    updateTracePanel(panel, turn, 'tank-x')
+    expect(panel.querySelector('.trace-panel__call-result')?.textContent)
+      .toBe('hit obstacle (6, 4)')
   })
 
   it('handles missing modelTrace gracefully by showing "No trace data"', () => {

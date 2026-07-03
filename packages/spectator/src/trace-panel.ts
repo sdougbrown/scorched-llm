@@ -26,6 +26,8 @@ function formatResult(result: ActionResult): string {
       return `blocked: ${result.reason}`
     case 'miss':
       return 'miss'
+    case 'obstacle-hit':
+      return `hit obstacle (${result.coordinate.x}, ${result.coordinate.y})`
     case 'hit':
       return `hit(${result.targetId}, ${result.damage} damage)`
     case 'revealed':
@@ -44,6 +46,7 @@ const RESULT_BEM_CLASS: Record<ActionResult['kind'], string> = {
   ok: '--ok',
   blocked: '--error',
   miss: '--miss',
+  'obstacle-hit': '--miss',
   hit: '--hit',
   revealed: '',
   invalid: '--error',
@@ -119,6 +122,33 @@ function injectStyles(): void {
       color: #c8caa0;
       max-height: 240px;
       overflow-y: auto;
+    }
+
+    .trace-panel__reasoning {
+      margin: 0 0 10px;
+      border: 1px solid #2a2a4a;
+      border-radius: 4px;
+      background: #0f0f23;
+    }
+
+    .trace-panel__reasoning-summary {
+      padding: 8px 10px;
+      color: #9b8ac4;
+      cursor: pointer;
+      font-size: 11px;
+      user-select: none;
+    }
+
+    .trace-panel__reasoning-content {
+      max-height: 320px;
+      margin: 0;
+      padding: 10px 12px;
+      overflow-y: auto;
+      border-top: 1px solid #2a2a4a;
+      color: #aaa;
+      font-size: 11px;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
     }
 
     .trace-panel__stats {
@@ -296,6 +326,22 @@ export function updateTracePanel(panel: HTMLElement, turn: TurnEvent, _tankId: s
     return
   }
 
+  if (trace.reasoningContent) {
+    const details = document.createElement('details')
+    details.className = 'trace-panel__reasoning'
+
+    const summary = document.createElement('summary')
+    summary.className = 'trace-panel__reasoning-summary'
+    summary.textContent = 'Model reasoning'
+
+    const reasoning = document.createElement('pre')
+    reasoning.className = 'trace-panel__reasoning-content'
+    reasoning.textContent = trace.reasoningContent
+
+    details.append(summary, reasoning)
+    content.appendChild(details)
+  }
+
   // Assistant text
   if (trace.assistantText) {
     const pre = document.createElement('pre')
@@ -376,6 +422,7 @@ export function updateTracePanel(panel: HTMLElement, turn: TurnEvent, _tankId: s
           case 'ok': resultClass = 'trace-panel__call-result--ok'; break
           case 'blocked': resultClass = 'trace-panel__call-result--error'; break
           case 'miss': resultClass = 'trace-panel__call-result--miss'; break
+          case 'obstacle-hit': resultClass = 'trace-panel__call-result--miss'; break
           case 'hit': resultClass = 'trace-panel__call-result--hit'; break
           case 'revealed': resultClass = 'trace-panel__call-result--revealed'; break
           case 'invalid': resultClass = 'trace-panel__call-result--error'; break

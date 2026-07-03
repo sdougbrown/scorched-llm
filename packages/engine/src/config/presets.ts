@@ -10,7 +10,6 @@ const commonFields: Partial<MatchConfig> = {
   fog: { localRadius: 3, flareRadius: 2, flareDuration: 'one-round-global' },
   shell: { maxRange: 10, apexHeight: 5, tankHeight: 1 },
   perTurnTimeoutMs: 30000,
-  maxToolCallsPerTurn: 3,
 }
 
 export const PRESETS: Record<string, (seed: number, players: PlayerSpec[]) => MatchConfig> = {
@@ -20,6 +19,7 @@ export const PRESETS: Record<string, (seed: number, players: PlayerSpec[]) => Ma
       ...commonFields,
       map: { width: 20, height: 20, obstacleDensity: 0.1, generatorVersion: 'v1', obstacleHeight: 3 },
       actionEconomy: 'double',
+      maxToolCallsPerTurn: 5,
       turnLimit: 50,
       seed,
       players,
@@ -31,6 +31,7 @@ export const PRESETS: Record<string, (seed: number, players: PlayerSpec[]) => Ma
       ...commonFields,
       map: { width: 15, height: 15, obstacleDensity: 0.1, generatorVersion: 'v1', obstacleHeight: 3 },
       actionEconomy: 'single',
+      maxToolCallsPerTurn: 4,
       turnLimit: 30,
       lethality: { hitsToKill: 1 },
       seed,
@@ -44,6 +45,7 @@ export const PRESETS: Record<string, (seed: number, players: PlayerSpec[]) => Ma
       map: { width: 25, height: 25, obstacleDensity: 0.12, generatorVersion: 'v1', obstacleHeight: 3 },
       fog: { localRadius: 3, flareRadius: 3, flareDuration: 'one-round-global' },
       actionEconomy: 'double',
+      maxToolCallsPerTurn: 5,
       spawnStrategy: 'symmetric',
       shell: { maxRange: 12, apexHeight: 5, tankHeight: 1 },
       turnLimit: 80,

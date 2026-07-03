@@ -45,6 +45,7 @@ describe('duel preset', () => {
   it('has correct actionEconomy', () => {
     const config = PRESETS.duel(42, [playerA, playerB])
     expect(config.actionEconomy).toBe('double')
+    expect(config.maxToolCallsPerTurn).toBe(5)
   })
 
   it('has correct turnLimit', () => {
@@ -80,6 +81,7 @@ describe('blitz preset', () => {
   it('has correct actionEconomy', () => {
     const config = PRESETS.blitz(42, [playerA, playerB])
     expect(config.actionEconomy).toBe('single')
+    expect(config.maxToolCallsPerTurn).toBe(4)
   })
 
   it('has correct turnLimit', () => {
@@ -115,6 +117,7 @@ describe('survival preset', () => {
   it('has correct actionEconomy', () => {
     const config = PRESETS.survival(42, [playerA, playerB, playerC, playerD])
     expect(config.actionEconomy).toBe('double')
+    expect(config.maxToolCallsPerTurn).toBe(5)
   })
 
   it('has correct turnLimit', () => {

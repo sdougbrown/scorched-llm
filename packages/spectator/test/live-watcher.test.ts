@@ -133,6 +133,24 @@ describe('LiveWatcher — polling behavior', () => {
     expect(onUpdate.mock.calls[0][0].turns).toHaveLength(0)
   })
 
+  it('publishes thinking-state changes without a completed turn', async () => {
+    const onUpdate = vi.fn()
+    const waiting = makeValidLog()
+    const thinking = makeValidLog({
+      liveState: { status: 'thinking', turn: 1, player: 'A' },
+    })
+    fetchMock
+      .mockResolvedValueOnce({ ok: true, text: () => Promise.resolve(JSON.stringify(waiting)) })
+      .mockResolvedValue({ ok: true, text: () => Promise.resolve(JSON.stringify(thinking)) })
+
+    const watcher = new LiveWatcher('/api/match', onUpdate, vi.fn())
+    watcher.start()
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL)
+
+    expect(onUpdate).toHaveBeenCalledTimes(2)
+    expect(onUpdate.mock.calls[1][0].liveState?.player).toBe('A')
+  })
+
   it('does not call onUpdate again when turns are unchanged', async () => {
     const onUpdate = vi.fn()
     const onComplete = vi.fn()

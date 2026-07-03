@@ -11,6 +11,7 @@ export class LiveWatcher {
   private onComplete: () => void
   private timerId: ReturnType<typeof setTimeout> | null
   private currentTurns: number
+  private currentLiveState: string
   private _isComplete: boolean
   private _status: 'disconnected' | 'connecting' | 'polling' | 'complete'
   private consecutiveNoChange: number
@@ -26,6 +27,7 @@ export class LiveWatcher {
     this.timerId = null
     // The first valid payload must render even when no turn has completed yet.
     this.currentTurns = -1
+    this.currentLiveState = ''
     this._isComplete = false
     this._status = 'disconnected'
     this.consecutiveNoChange = 0
@@ -90,10 +92,14 @@ export class LiveWatcher {
       }
 
       const newTurnCount = log.turns.length
+      const newLiveState = log.liveState == null
+        ? ''
+        : `${log.liveState.status}:${log.liveState.turn}:${log.liveState.player}`
 
-      if (newTurnCount > this.currentTurns) {
+      if (newTurnCount > this.currentTurns || newLiveState !== this.currentLiveState) {
         this.onUpdate(log)
         this.currentTurns = newTurnCount
+        this.currentLiveState = newLiveState
         this.consecutiveNoChange = 0
       } else {
         this.consecutiveNoChange++

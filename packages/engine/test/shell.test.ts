@@ -142,7 +142,7 @@ describe('fireShell — obstacle blocks', () => {
       [{ x: 6, y: 10, height: 5 }],
     )
     const { result } = fireShell(state, config, 't1', 90, 7)
-    expect(result.kind).toBe('blocked')
+    expect(result).toEqual({ kind: 'obstacle-hit', coordinate: { x: 6, y: 10 } })
   })
 
   it('overflies a standard obstacle near the middle of the arc', () => {
@@ -170,7 +170,7 @@ describe('fireShell — obstacle blocks', () => {
       [{ x: 9, y: 10, height: 3 }],
     )
     const { result } = fireShell(state, config, 't1', 90, 7)
-    expect(result.kind).toBe('blocked')
+    expect(result).toEqual({ kind: 'obstacle-hit', coordinate: { x: 9, y: 10 } })
   })
 })
 

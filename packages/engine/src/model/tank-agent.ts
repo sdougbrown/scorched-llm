@@ -242,6 +242,10 @@ export class ModelBackedTankAgent implements TankAgent {
         .map((response) => response.assistantText)
         .filter((text): text is string => text != null && text.length > 0)
         .join('\n') || undefined,
+      reasoningContent: responses
+        .map((response) => response.reasoningContent)
+        .filter((text): text is string => text != null && text.length > 0)
+        .join('\n') || undefined,
       tokensIn: responses.reduce((sum, response) => sum + response.tokensIn, 0),
       tokensOut: responses.reduce((sum, response) => sum + response.tokensOut, 0),
       costUsd: costUnknown

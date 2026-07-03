@@ -28,6 +28,11 @@ export interface MatchLog {
   initialState: GameState
   turns: TurnEvent[]
   result: MatchResult
+  liveState?: {
+    status: 'thinking'
+    turn: number
+    player: string
+  }
 }
 
 /** Checkpoint state — serializable, for resume/replay. */

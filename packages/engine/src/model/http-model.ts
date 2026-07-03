@@ -23,6 +23,7 @@ interface OpenAIToolCall {
 }
 
 interface OpenAIRequestBody {
+  [key: string]: unknown
   model: string
   messages: OpenAIMessage[]
   tools?: { type: 'function'; function: Record<string, unknown> }[]
@@ -34,6 +35,7 @@ interface OpenAIChoice {
   message: {
     role?: string
     content?: string | null
+    reasoning_content?: string | null
     tool_calls?: OpenAIToolCall[]
   }
   finish_reason: string | null
@@ -50,20 +52,29 @@ interface OpenAIResponse {
   usage?: OpenAIUsage
 }
 
-const TOOL_CALL_CONTENT_PREFIX = '{"type":"tool_use",'
-
-function isToolCallContent(content: string): boolean {
-  return content.startsWith(TOOL_CALL_CONTENT_PREFIX)
-}
-
-function parseToolCallContent(content: string): Array<{
+interface ContentToolCall {
   type: 'tool_use'
   id: string
   name: string
   input: Record<string, unknown>
-}> {
+}
+
+function parseToolCallContent(content: string): ContentToolCall[] {
   try {
-    return JSON.parse(content)
+    const parsed: unknown = JSON.parse(content)
+    const candidates = Array.isArray(parsed) ? parsed : [parsed]
+    return candidates.filter((candidate): candidate is ContentToolCall => {
+      if (typeof candidate !== 'object' || candidate == null) return false
+      const call = candidate as Record<string, unknown>
+      return (
+        call.type === 'tool_use' &&
+        typeof call.id === 'string' &&
+        typeof call.name === 'string' &&
+        typeof call.input === 'object' &&
+        call.input != null &&
+        !Array.isArray(call.input)
+      )
+    })
   } catch {
     return []
   }
@@ -108,7 +119,7 @@ function buildOpenAIMessages(
         content: toolContent,
         tool_call_id: toolCallId,
       })
-    } else if (msg.role === 'assistant' && isToolCallContent(msg.content)) {
+    } else if (msg.role === 'assistant' && parseToolCallContent(msg.content).length > 0) {
       const toolCalls = parseToolCallContent(msg.content)
       const openaiToolCalls: OpenAIToolCall[] = toolCalls.map((tc) => ({
         id: tc.id,
@@ -185,6 +196,7 @@ export class HttpModel implements Model {
     const openaiTools = buildOpenAITools(request.tools)
 
     const body: OpenAIRequestBody = {
+      ...this.spec.extraBody,
       model: this.spec.model,
       messages: openaiMessages,
     }
@@ -304,6 +316,10 @@ export class HttpModel implements Model {
 
     const message = choice.message
     let assistantText: string | undefined
+    const reasoningContent =
+      typeof message.reasoning_content === 'string' && message.reasoning_content.length > 0
+        ? message.reasoning_content
+        : undefined
     const toolCalls: NormalizedToolCall[] = []
     let finishReason: string
 
@@ -326,6 +342,19 @@ export class HttpModel implements Model {
           arguments: parsedArgs,
         })
       }
+    } else if (message.content != null) {
+      const contentToolCalls = parseToolCallContent(message.content)
+      if (contentToolCalls.length > 0) {
+        assistantText = undefined
+        for (const tc of contentToolCalls) {
+          toolCalls.push({
+            id: tc.id,
+            name: tc.name,
+            arguments: tc.input,
+          })
+        }
+      }
+      finishReason = choice.finish_reason ?? 'stop'
     } else {
       finishReason = choice.finish_reason ?? 'stop'
     }
@@ -347,6 +376,7 @@ export class HttpModel implements Model {
 
     return {
       assistantText,
+      reasoningContent,
       toolCalls,
       tokensIn,
       tokensOut,

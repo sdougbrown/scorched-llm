@@ -10,6 +10,11 @@ export function blocked(reason: string): ActionResult { return { kind: 'blocked'
 /** Create a `miss` action result. */
 export function miss(): ActionResult { return { kind: 'miss' } }
 
+/** Create an obstacle impact result for a valid shell shot. */
+export function obstacleHit(coordinate: Coordinate): ActionResult {
+  return { kind: 'obstacle-hit', coordinate }
+}
+
 /** Create a `hit` action result targeting a tank with given damage. */
 export function hit(targetId: string, damage: number): ActionResult { return { kind: 'hit', targetId, damage } }
 

@@ -48,6 +48,8 @@ describe('buildSystemPrompt', () => {
   it('contains move max', () => {
     const prompt = buildSystemPrompt(makeConfig({ moveMax: 7 }), 'Alpha')
     expect(prompt).toContain('7')
+    expect(prompt).toContain('14 cells')
+    expect(prompt).toContain('leaves no action for a flare or shell')
   })
 
   it('contains flare radius', () => {

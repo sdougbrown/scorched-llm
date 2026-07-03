@@ -5,6 +5,7 @@ export const SYSTEM_PROMPT_VERSION = 'v1'
 export function buildSystemPrompt(config: MatchConfig, label: string): string {
   const actionBudget = config.actionEconomy === 'double' ? 2 : 1
   const moveMax = config.moveMax ?? config.fog.flareRadius
+  const totalMoveMax = moveMax * actionBudget
   const localRadius = config.fog.localRadius
   const flareRadius = config.fog.flareRadius
   const hp = config.lethality.hitsToKill
@@ -27,7 +28,7 @@ export function buildSystemPrompt(config: MatchConfig, label: string): string {
     `- Your tank has ${hp} HP. You are destroyed when your HP reaches 0.`,
     `- Your local vision radius is ${localRadius} cells.`,
     `- Flares reveal tanks and terrain in a circular area of radius ${flareRadius} for one round (until your next turn). The area is visible to every player.`,
-    `- Movement budget is cumulative across all moves in a turn.`,
+    `- Each move can travel at most ${moveMax} cells. Your total movement allowance is ${totalMoveMax} cells across ${actionBudget} action(s), and each move still consumes one action.`,
     `- You can move in 8 directions: N, NE, E, SE, S, SW, W, NW.`,
     `- Maximum movement distance per move is ${moveMax} cells.`,
     `- Flare and shell are mutually exclusive — you may fire at most one offensive action (flare or shell) per turn.`,
@@ -65,7 +66,7 @@ export function buildSystemPrompt(config: MatchConfig, label: string): string {
     '- Remember enemy positions from previous turns — they may have moved.',
     '- If you are in an enemy flare (the worldview will warn you), you are visible to them.',
     '- Track flare expiry — information goes stale. Flares last only until your next turn.',
-    '- Movement budget is shared across all moves in a turn, so plan accordingly.',
+    `- In a double-action turn, moving twice can travel up to ${totalMoveMax} total cells but leaves no action for a flare or shell.`,
     '',
     '## Output',
     '',

@@ -3,7 +3,7 @@ import type { MatchConfig } from '../config/schema.js'
 import type { Coordinate } from '../types/coords.js'
 import type { ActionResult } from '../types/tool.js'
 import { supercover } from '../geometry/supercover.js'
-import { blocked, miss, hit } from '../action-result/index.js'
+import { blocked, miss, hit, obstacleHit } from '../action-result/index.js'
 
 export interface ShellTrajectory {
   sampledCells: Coordinate[]
@@ -94,7 +94,7 @@ export function fireShell(
     if (terrainCell.terrain === 'obstacle' && cellHeight <= terrainCell.obstacleHeight) {
       return {
         newState: state,
-        result: blocked('Shell blocked by obstacle'),
+        result: obstacleHit(cell),
         trajectory: { sampledCells, impactPoint: cell },
       }
     }

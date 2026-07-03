@@ -25,6 +25,7 @@ export interface WorldView {
 export interface ModelTrace {
   toolCalls: ToolCall[]
   assistantText?: string
+  reasoningContent?: string
   tokensIn: number
   tokensOut: number
   costUsd: number | 'unknown'

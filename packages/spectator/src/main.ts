@@ -181,7 +181,7 @@ html, body {
 .app__header__live {
   display: flex;
   align-items: center;
-  gap: 6px;
+  margin-left: 12px;
   font-size: 12px;
   color: #888;
 }
@@ -495,6 +495,23 @@ function onLoadMatch(
 }
 
 function startLiveWatch(state: AppState, url: string, ctx: BuildContext): void {
+  const updateLiveActivity = (log: MatchLog): void => {
+    const liveText = state.liveBadgeEl!.querySelector('.app__live-text')
+    if (!liveText) return
+    if (log.liveState?.status === 'thinking') {
+      const tankIndex = log.initialState.tanks.findIndex(
+        (tank) => tank.id === log.liveState?.player,
+      )
+      const label = tankIndex >= 0
+        ? log.config.players[tankIndex]?.label ?? log.liveState.player
+        : log.liveState.player
+      liveText.textContent = `TURN ${log.liveState.turn}: ${label} THINKING`
+    } else {
+      liveText.textContent = 'LIVE'
+    }
+    liveText.className = 'app__live-text'
+  }
+
   const watcher = new LiveWatcher(
     url,
     (log: MatchLog) => {
@@ -502,12 +519,20 @@ function startLiveWatch(state: AppState, url: string, ctx: BuildContext): void {
 
       if (!oldLog) {
         onLoadMatch(state, log, ctx)
+        updateLiveActivity(log)
+        return
+      }
+
+      if (log.turns.length === oldLog.turns.length) {
+        state.log = log
+        updateLiveActivity(log)
         return
       }
 
       const firstNewPosition = state.timeline?.length() ?? 0
       onLoadMatch(state, log, ctx, firstNewPosition)
       state.posIndex = Math.max(0, firstNewPosition)
+      updateLiveActivity(log)
 
       ctx.headerInfo.textContent = `${log.metadata.matchId} — ${log.turns.length} turns`
     },
@@ -528,6 +553,9 @@ function startLiveWatch(state: AppState, url: string, ctx: BuildContext): void {
   watcher.start()
   state.watcher = watcher
 
+  const liveControlsContainer = state.liveBadgeEl!.parentElement
+  liveControlsContainer?.removeAttribute('hidden')
+  liveControlsContainer?.classList.remove('app__header__live--hidden')
   state.liveBadgeEl!.classList.remove('app__header__live--hidden')
   state.liveStopBtn!.removeAttribute('hidden')
 
@@ -541,6 +569,9 @@ function stopLiveWatch(state: AppState, ctx: BuildContext): void {
     state.watcher = null
   }
 
+  const liveControlsContainer = state.liveBadgeEl!.parentElement
+  liveControlsContainer?.setAttribute('hidden', '')
+  liveControlsContainer?.classList.add('app__header__live--hidden')
   state.liveBadgeEl!.classList.add('app__header__live--hidden')
   state.liveStopBtn!.setAttribute('hidden', '')
 

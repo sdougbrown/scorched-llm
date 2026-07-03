@@ -6,6 +6,7 @@ export const ModelSpecSchema = z.object({
   apiKeyEnv: z.string().optional(),
   model: z.string(),
   headers: z.record(z.string()).optional(),
+  extraBody: z.record(z.unknown()).optional(),
   parameters: z.object({
     temperature: z.number().optional(),
     seed: z.number().optional(),

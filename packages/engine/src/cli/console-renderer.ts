@@ -243,6 +243,9 @@ export function renderTurn(
             case 'miss':
               lines.push('    ✗ Miss')
               break
+            case 'obstacle-hit':
+              lines.push(`    ✗ Hit obstacle at (${action.result.coordinate.x}, ${action.result.coordinate.y})`)
+              break
             case 'blocked':
               lines.push(`    ✗ Blocked: ${action.result.reason}`)
               break

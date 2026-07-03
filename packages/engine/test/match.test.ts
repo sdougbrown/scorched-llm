@@ -119,6 +119,21 @@ describe('runMatch — basic orchestration', () => {
     }
   })
 
+  it('publishes the current thinking player before awaiting the agent', async () => {
+    const updates: MatchLog[] = []
+    const config = makeConfig({ turnLimit: 1 })
+
+    await runMatch(
+      config,
+      [alwaysPassAgent('p1'), alwaysPassAgent('p2')],
+      (log) => updates.push(structuredClone(log)),
+    )
+
+    expect(updates).toContainEqual(expect.objectContaining({
+      liveState: { status: 'thinking', turn: 1, player: 'tank-0' },
+    }))
+  })
+
   it('single action economy produces one pass', async () => {
     const config = makeConfig({ turnLimit: 5, actionEconomy: 'single' })
     const { log } = await runMatch(config, [alwaysPassAgent('p1'), alwaysPassAgent('p2')])
@@ -148,6 +163,43 @@ describe('runMatch — basic orchestration', () => {
       const actionEvents = log.turns[i].actions.filter((a) => a.kind === 'pass')
       expect(actionEvents.length).toBe(2)
     }
+  })
+
+  it('allows two maximum-distance moves in double-action mode', async () => {
+    const config = makeConfig({
+      turnLimit: 2,
+      moveMax: 3,
+      map: { width: 20, height: 20, obstacleDensity: 0, generatorVersion: 'v1', obstacleHeight: 3 },
+    })
+    const mover = fixtureCallAgent('p1', [
+      { id: 'move-1', tool: { kind: 'move', direction: 'E', distance: 3 } },
+      { id: 'move-2', tool: { kind: 'move', direction: 'E', distance: 3 } },
+      { id: 'flare-1', tool: { kind: 'fire_flare', direction: 'E', range: 5 } },
+    ])
+
+    const { log } = await runMatch(config, [mover, alwaysPassAgent('p2')])
+
+    expect(log.turns[0].actions.map((action) => action.call.id)).toEqual(['move-1', 'move-2'])
+    expect(log.turns[0].actions.map((action) => action.result.kind)).toEqual(['ok', 'ok'])
+    expect(log.turns[0].actions[1].snapshot.tanks[0].position).toEqual({ x: 6, y: 0 })
+  })
+
+  it('rejects a single move beyond the per-action maximum', async () => {
+    const config = makeConfig({
+      turnLimit: 2,
+      moveMax: 3,
+      map: { width: 20, height: 20, obstacleDensity: 0, generatorVersion: 'v1', obstacleHeight: 3 },
+    })
+    const mover = fixtureCallAgent('p1', [
+      { id: 'move-1', tool: { kind: 'move', direction: 'E', distance: 6 } },
+    ])
+
+    const { log } = await runMatch(config, [mover, alwaysPassAgent('p2')])
+
+    expect(log.turns[0].actions[0].result).toEqual({
+      kind: 'invalid',
+      reason: 'Move distance exceeds per-action maximum of 3',
+    })
   })
 })
 
