@@ -138,10 +138,9 @@ describe('LiveWatcher — polling behavior', () => {
     const watcher = new LiveWatcher('/api/match', onUpdate, onComplete)
     watcher.start()
 
-    // Advance through all intervals until completion (consecutiveNoChange reaches 2)
     await vi.advanceTimersByTimeAsync(POLL_INTERVAL * 3)
     expect(onUpdate).toHaveBeenCalledTimes(1)
-    expect(watcher.isComplete).toBe(true)
+    expect(watcher.isComplete).toBe(false)
   })
 
   it('stops polling after onComplete', async () => {
@@ -270,7 +269,7 @@ describe('LiveWatcher — completion detection', () => {
     expect(onComplete).toHaveBeenCalled()
   })
 
-  it('detects completion when turns stop growing (2 consecutive identical polls)', async () => {
+  it('does not complete when turns stop growing but match has not terminated', async () => {
     const onUpdate = vi.fn()
     const onComplete = vi.fn()
 
@@ -291,12 +290,11 @@ describe('LiveWatcher — completion detection', () => {
     const watcher = new LiveWatcher('/api/match', onUpdate, onComplete)
     watcher.start()
 
-    // Advance through all intervals until completion (3 polls with no change after initial)
     await vi.advanceTimersByTimeAsync(POLL_INTERVAL * 4)
 
-    expect(watcher.isComplete).toBe(true)
-    expect(watcher.status).toBe('complete')
-    expect(onComplete).toHaveBeenCalled()
+    expect(watcher.isComplete).toBe(false)
+    expect(watcher.status).toBe('polling')
+    expect(onComplete).not.toHaveBeenCalled()
   })
 })
 
@@ -314,18 +312,21 @@ describe('LiveWatcher — cascade polling', () => {
     fetchMock.mockImplementation(async () => {
       const i = idx++
       const turns = [2, 4, 6, 8, 10][i] || 10
-      return { ok: true, text: () => Promise.resolve(JSON.stringify(makeValidLog({ turns: Array(turns).fill(null).map((_, j) => ({
-        turn: j, player: j % 2 === 0 ? 'A' : 'B', actions: [], worldview: { position: { x: 0, y: 0 }, hp: 2, facing: 0, localScan: [], flaredCells: [], inEnemyFlare: [], remainingActions: 2, turn: j, isMyTurn: j % 2 === 0, aliveEnemyCount: 1 } } as TurnEvent)) }))) }
+      const isLast = turns >= 10
+      return { ok: true, text: () => Promise.resolve(JSON.stringify(makeValidLog({
+        turns: Array(turns).fill(null).map((_, j) => ({
+          turn: j, player: j % 2 === 0 ? 'A' : 'B', actions: [], worldview: { position: { x: 0, y: 0 }, hp: 2, facing: 0, localScan: [], flaredCells: [], inEnemyFlare: [], remainingActions: 2, turn: j, isMyTurn: j % 2 === 0, aliveEnemyCount: 1 } } as TurnEvent)
+        ),
+        result: isLast ? { terminationReason: 'last-standing', placements: [{ tankId: 'A', rank: 1, hp: 2, damageDealt: 0, hitsLanded: 0 }] } : { terminationReason: 'turn-limit', placements: [] },
+      }))) }
     })
 
     const watcher = new LiveWatcher('/api/match', onUpdate, onComplete)
     watcher.start()
 
-    // Advance past initial poll (drains all pending timers including cascaded .then() schedules)
     await vi.advanceTimersByTimeAsync(POLL_INTERVAL * 20)
 
-    // Should have seen updates as turns grew across cascaded polls, then completion
-    expect(onUpdate).toHaveBeenCalledTimes(5)
+    expect(onUpdate).toHaveBeenCalledTimes(3)
     expect(watcher.status).toBe('complete')
     expect(onComplete).toHaveBeenCalledTimes(1)
 

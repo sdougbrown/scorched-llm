@@ -103,7 +103,7 @@ export class LiveWatcher {
         terminationReason === 'last-standing' ||
         terminationReason === 'mutual-destruction'
 
-      if (isTerminated || this.consecutiveNoChange >= 2) {
+      if (isTerminated) {
         this._isComplete = true
         this._status = 'complete'
         this.onComplete()
