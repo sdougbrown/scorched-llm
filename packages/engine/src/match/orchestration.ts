@@ -361,6 +361,7 @@ export function restoreFromCheckpoint(
 export async function runMatch(
   config: MatchConfig,
   agents: TankAgent[],
+  onTurnComplete?: (log: MatchLog) => void,
 ): Promise<{ log: MatchLog; result: MatchResult }> {
   if (agents.length !== config.players.length) {
     throw new Error(
@@ -387,6 +388,8 @@ export async function runMatch(
   }
 
   const runner = createRunner(config, state, rng, log)
+
+  onTurnComplete?.(log)
 
   while (runner.turnCursor < config.turnLimit) {
     runner.state = expireFlares(runner.state, runner.turnCursor)
@@ -494,6 +497,7 @@ export async function runMatch(
           actions: turnActions,
           worldview,
         })
+        onTurnComplete?.(log)
         log.result = termination
         return { log, result: termination }
       }
@@ -506,6 +510,8 @@ export async function runMatch(
       worldview,
     })
 
+    onTurnComplete?.(log)
+
     runner.playerCursor = (runner.playerCursor + 1) % playerCount
 
     const termination = checkTermination(runner.state, config, runner.turnCursor)
@@ -517,5 +523,8 @@ export async function runMatch(
 
   const result = computeMatchResult(runner.state, config, runner.turnCursor)
   log.result = result
+
+  onTurnComplete?.(log)
+
   return { log, result }
 }
