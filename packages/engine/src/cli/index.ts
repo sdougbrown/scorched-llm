@@ -115,6 +115,7 @@ export async function runCli(argv: string[]): Promise<void> {
       }
 
       res.statusCode = 404
+      res.setHeader('Access-Control-Allow-Origin', '*')
       res.end()
     })
 
