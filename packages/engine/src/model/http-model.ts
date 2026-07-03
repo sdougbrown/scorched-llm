@@ -171,10 +171,8 @@ export class HttpModel implements Model {
   }
 
   async query(request: ModelRequest): Promise<NormalizedModelResponse> {
-    const apiKey = process.env[this.spec.apiKeyEnv ?? 'OPENAI_API_KEY']
-    if (apiKey == null) {
-      throw new Error(`API key environment variable not set: ${this.spec.apiKeyEnv ?? 'OPENAI_API_KEY'}`)
-    }
+    const apiKeyEnv = this.spec.apiKeyEnv ?? 'OPENAI_API_KEY'
+    const apiKey = process.env[apiKeyEnv]
 
     const baseUrl = this.spec.baseURL.replace(/\/+$/, '')
     const url = `${baseUrl}/chat/completions`
@@ -205,7 +203,10 @@ export class HttpModel implements Model {
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
+    }
+
+    if (apiKey != null) {
+      headers.Authorization = `Bearer ${apiKey}`
     }
 
     if (this.spec.headers) {

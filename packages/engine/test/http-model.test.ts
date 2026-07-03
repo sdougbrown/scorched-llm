@@ -299,10 +299,28 @@ describe('HttpModel', () => {
       }
     })
 
-    it('throws when API key env var is missing', async () => {
-      const spec = makeSpec({ apiKeyEnv: 'MISSING_KEY' })
-      const model = new HttpModel(spec)
-      await expect(model.query(makeRequest())).rejects.toThrow('API key environment variable not set')
+    it('sends request without Authorization header when API key env var is missing', async () => {
+      let capturedAuth: string | undefined
+      const result = await createMockServer((req, res) => {
+        capturedAuth = req.headers.authorization
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({
+          choices: [{
+            message: { role: 'assistant', content: null, tool_calls: null },
+            finish_reason: 'stop',
+          }],
+          usage: { prompt_tokens: 10, completion_tokens: 5 },
+        }))
+      })
+      try {
+        const spec = makeSpec({ baseURL: `http://127.0.0.1:${result.port}`, apiKeyEnv: 'MISSING_KEY' })
+        delete process.env.MISSING_KEY
+        const model = new HttpModel(spec)
+        await model.query(makeRequest())
+        expect(capturedAuth).toBeUndefined()
+      } finally {
+        await closeServer(result.server)
+      }
     })
   })
 
