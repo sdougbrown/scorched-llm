@@ -13,6 +13,23 @@ import { runBatch } from './batch.js'
 import { runAggregate } from './aggregate.js'
 import { runExhibition } from './exhibition.js'
 
+function printMatchResult(log: MatchLog, result: MatchLog['result']): void {
+  console.log(`Match complete: ${result.terminationReason}`)
+  console.log(`Turns: ${log.turns.length}`)
+  for (const placement of result.placements) {
+    const tankIndex = log.initialState.tanks.findIndex((tank) => tank.id === placement.tankId)
+    const player = tankIndex >= 0 ? log.config.players[tankIndex] : undefined
+    const label = player?.label ?? placement.tankId
+    const modelId = player?.model?.model
+    const identity = modelId
+      ? `${label} [${placement.tankId}, ${modelId}]`
+      : `${label} [${placement.tankId}]`
+    console.log(
+      `  ${placement.rank}. ${identity} (HP: ${placement.hp}, DMG: ${placement.damageDealt})`,
+    )
+  }
+}
+
 export async function runCli(argv: string[]): Promise<void> {
   if (argv[0] === 'exhibition') {
     return runExhibition(argv.slice(1))
@@ -137,11 +154,7 @@ export async function runCli(argv: string[]): Promise<void> {
 
     status = 'complete'
 
-    console.log(`Match complete: ${result.terminationReason}`)
-    console.log(`Turns: ${log.turns.length}`)
-    for (const placement of result.placements) {
-      console.log(`  ${placement.rank}. ${placement.tankId} (HP: ${placement.hp}, DMG: ${placement.damageDealt})`)
-    }
+    printMatchResult(log, result)
 
     const sigintHandler = () => {
       httpServer.close(() => {
@@ -157,9 +170,5 @@ export async function runCli(argv: string[]): Promise<void> {
 
   writeFileSync(outPath, JSON.stringify(log, null, 2))
 
-  console.log(`Match complete: ${result.terminationReason}`)
-  console.log(`Turns: ${log.turns.length}`)
-  for (const placement of result.placements) {
-    console.log(`  ${placement.rank}. ${placement.tankId} (HP: ${placement.hp}, DMG: ${placement.damageDealt})`)
-  }
+  printMatchResult(log, result)
 }

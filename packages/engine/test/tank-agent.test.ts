@@ -79,6 +79,31 @@ describe('ModelBackedTankAgent', () => {
       const agent = new ModelBackedTankAgent('my-tank', new FakeModel([]), SYSTEM_PROMPT, 3)
       expect(agent.name).toBe('my-tank')
     })
+
+    it('compacts old turns into deterministic tactical memory', async () => {
+      const model = new FakeModel(Array.from({ length: 8 }, () => makeResponse()))
+      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT, 3)
+
+      for (let turn = 1; turn <= 8; turn++) {
+        await agent.takeTurn(makeWorldView({
+          turn,
+          position: { x: turn, y: 5 },
+          visibleEnemies: [{
+            id: 'tank-2',
+            position: { x: 20 - turn, y: 10 },
+            hp: turn < 7 ? 2 : 1,
+          }],
+        }), TOOLS)
+      }
+
+      const userMessages = agent.messages.filter((message) => message.role === 'user')
+      expect(userMessages).toHaveLength(5)
+      expect(agent.messages.filter((message) => message.role === 'system')).toHaveLength(1)
+      expect(agent.messages[0].content).toContain(SYSTEM_PROMPT)
+      expect(agent.messages[0].content).toContain('TACTICAL MEMORY')
+      expect(agent.messages[0].content).toContain('T1 (19,10) HP2')
+      expect(agent.messages[0].content).toContain('T8 (12,10) HP1')
+    })
   })
 
   describe('tool-call conversion', () => {

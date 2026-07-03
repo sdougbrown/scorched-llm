@@ -107,6 +107,16 @@ describe('CLI', () => {
     expect(log.turns.length).toBe(5)
   })
 
+  it('prints player labels alongside tank IDs in results', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    try {
+      await runCli(['--config', configPath, '--out', outPath])
+      expect(logSpy).toHaveBeenCalledWith(expect.stringMatching(/p[12] \[tank-[01]\]/))
+    } finally {
+      logSpy.mockRestore()
+    }
+  })
+
   describe('CLI live mode', () => {
     it('creates model-backed agents when --live flag is passed', async () => {
       // This test verifies the CLI accepts --live and creates agents

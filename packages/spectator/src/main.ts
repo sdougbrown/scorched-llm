@@ -182,6 +182,7 @@ html, body {
   display: flex;
   align-items: center;
   margin-left: 12px;
+  gap: 6px;
   font-size: 12px;
   color: #888;
 }

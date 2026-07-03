@@ -9,6 +9,7 @@ import type { ModelTrace, WorldView } from '../types/events.js'
 import type { ToolCall } from '../types/tool.js'
 import type { Model, ModelRequest, NormalizedModelResponse, NormalizedToolCall } from './types.js'
 import { serializeWorldView } from './worldview-serializer.js'
+import { TacticalMemory, serializeKnownMap } from './tactical-memory.js'
 
 /** Valid tool names the model can return. */
 const VALID_TOOL_NAMES = new Set<string>([
@@ -109,6 +110,9 @@ export class ModelBackedTankAgent implements TankAgent {
   private model: Model
   private systemPrompt: string
   private maxToolCallsPerTurn: number
+  private tacticalMemory = new TacticalMemory()
+
+  private static readonly RECENT_TURN_WINDOWS = 5
 
   constructor(name: string, model: Model, systemPrompt: string, maxToolCallsPerTurn: number) {
     this.name = name
@@ -124,8 +128,10 @@ export class ModelBackedTankAgent implements TankAgent {
     executeTool?: ToolExecutor,
   ): Promise<ToolCall[] | AgentTurnResult> {
     // 1. Append worldview as user message
+    this.tacticalMemory.observe(worldview)
     const description = serializeWorldView(worldview)
     this.messages.push({ role: 'user', content: description })
+    this.compactHistory()
 
     // 2. Inner loop: query model, execute, re-query if more calls needed
     const allToolCalls: ToolCall[] = []
@@ -190,11 +196,20 @@ export class ModelBackedTankAgent implements TankAgent {
               content: JSON.stringify({
                 result: execution.result,
                 worldview: execution.worldview,
-                ...(execution.knownMap == null ? {} : { knownMap: execution.knownMap }),
+                ...(execution.knownMap == null
+                  ? {}
+                  : { knownMap: serializeKnownMap(execution.knownMap) }),
                 turnEnded: execution.turnEnded,
               }),
             }),
           })
+          this.tacticalMemory.recordAction(
+            worldview.turn,
+            call,
+            execution.result,
+            execution.worldview,
+            execution.knownMap,
+          )
           answeredToolCallIds.add(call.id)
           turnEnded = execution.turnEnded
         }
@@ -255,5 +270,23 @@ export class ModelBackedTankAgent implements TankAgent {
       finishReason: responses.at(-1)?.finishReason ?? 'unknown',
     }
     return { toolCalls: allToolCalls, modelTrace: trace, executed: true }
+  }
+
+  private compactHistory(): void {
+    const userMessageIndexes: number[] = []
+    for (let i = 1; i < this.messages.length; i++) {
+      if (this.messages[i].role === 'user') userMessageIndexes.push(i)
+    }
+    if (userMessageIndexes.length <= ModelBackedTankAgent.RECENT_TURN_WINDOWS) return
+
+    const firstRecentTurnIndex =
+      userMessageIndexes[userMessageIndexes.length - ModelBackedTankAgent.RECENT_TURN_WINDOWS]
+    this.messages = [
+      {
+        role: 'system',
+        content: `${this.systemPrompt}\n\n${this.tacticalMemory.render()}`,
+      },
+      ...this.messages.slice(firstRecentTurnIndex),
+    ]
   }
 }
