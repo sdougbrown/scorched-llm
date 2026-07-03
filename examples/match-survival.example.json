@@ -1,0 +1,79 @@
+{
+  "rulesVersion": "v1",
+  "seed": 42,
+  "spawnStrategy": "symmetric",
+  "map": {
+    "width": 25,
+    "height": 25,
+    "obstacleDensity": 0.12,
+    "generatorVersion": "v1",
+    "obstacleHeight": 3
+  },
+  "players": [
+    {
+      "label": "OpenAI Model",
+      "startPosition": "random",
+      "model": {
+        "name": "openai-model",
+        "baseURL": "https://api.openai.com/v1",
+        "apiKeyEnv": "OPENAI_API_KEY",
+        "model": "your-openai-model-id",
+        "parameters": { "maxTokens": 2048 }
+      }
+    },
+    {
+      "label": "Anthropic Model",
+      "startPosition": "random",
+      "model": {
+        "name": "anthropic-model",
+        "baseURL": "https://api.anthropic.com",
+        "apiKeyEnv": "ANTHROPIC_API_KEY",
+        "model": "your-anthropic-model-id",
+        "parameters": { "maxTokens": 2048 }
+      }
+    },
+    {
+      "label": "Local Reasoning Model",
+      "startPosition": "random",
+      "model": {
+        "name": "local-reasoning-model",
+        "baseURL": "http://localhost:8080/v1",
+        "model": "your-local-reasoning-model-id",
+        "extraBody": {
+          "chat_template_kwargs": {
+            "enable_thinking": true
+          }
+        },
+        "parameters": { "maxTokens": 2048 }
+      }
+    },
+    {
+      "label": "Local Instruct Model",
+      "startPosition": "random",
+      "model": {
+        "name": "local-instruct-model",
+        "baseURL": "http://localhost:8081/v1",
+        "model": "your-local-instruct-model-id",
+        "parameters": { "maxTokens": 2048 }
+      }
+    }
+  ],
+  "fog": {
+    "localRadius": 3,
+    "flareRadius": 3,
+    "flareDuration": "one-round-global"
+  },
+  "actionEconomy": "double",
+  "moveMax": 3,
+  "shell": {
+    "maxRange": 12,
+    "apexHeight": 5,
+    "tankHeight": 1
+  },
+  "lethality": {
+    "hitsToKill": 2
+  },
+  "turnLimit": 80,
+  "perTurnTimeoutMs": 180000,
+  "maxToolCallsPerTurn": 5
+}
