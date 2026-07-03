@@ -3,7 +3,7 @@ import { loadMatchLog } from './log-loader.js'
 
 const POLL_INTERVAL_MS = 1500
 
-type FetchResult = MatchLog | { error: string }
+
 
 export class LiveWatcher {
   private url: string

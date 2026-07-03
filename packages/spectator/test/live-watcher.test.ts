@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { LiveWatcher } from '../src/live-watcher.js'
-import type { MatchLog } from '@scorched-llm/engine'
+import type { MatchLog, TurnEvent } from '@scorched-llm/engine'
 
 const POLL_INTERVAL = 1500
 
@@ -315,7 +315,7 @@ describe('LiveWatcher — cascade polling', () => {
       const i = idx++
       const turns = [2, 4, 6, 8, 10][i] || 10
       return { ok: true, text: () => Promise.resolve(JSON.stringify(makeValidLog({ turns: Array(turns).fill(null).map((_, j) => ({
-        turn: j, player: j % 2 === 0 ? 'A' : 'B', actions: [], worldview: { position: { x: 0, y: 0 }, hp: 2, facing: 0, localScan: [], flaredCells: [], inEnemyFlare: [], remainingActions: 2, turn: j, isMyTurn: j % 2 === 0, aliveEnemyCount: 1 } } as any)) }))) }
+        turn: j, player: j % 2 === 0 ? 'A' : 'B', actions: [], worldview: { position: { x: 0, y: 0 }, hp: 2, facing: 0, localScan: [], flaredCells: [], inEnemyFlare: [], remainingActions: 2, turn: j, isMyTurn: j % 2 === 0, aliveEnemyCount: 1 } } as TurnEvent)) }))) }
     })
 
     const watcher = new LiveWatcher('/api/match', onUpdate, onComplete)

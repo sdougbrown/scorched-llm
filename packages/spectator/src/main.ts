@@ -9,7 +9,7 @@ import { createTracePanel } from './trace-panel.js'
 import { updateStatsOverlay } from './stats-overlay.js'
 import { LiveWatcher } from './live-watcher.js'
 import type { MatchLog } from '@scorched-llm/engine'
-import { loadMatchLog } from './log-loader.js'
+
 
 const stateRef: { current: AppState | null } = { current: null }
 
