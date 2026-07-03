@@ -118,8 +118,8 @@ export async function runCli(argv: string[]): Promise<void> {
       res.end()
     })
 
-    server.listen(servePort, () => {
-      console.log(`Live spectate: http://localhost:${servePort}/match.json`)
+    server.listen(servePort, '0.0.0.0', () => {
+      console.log(`Live spectate: http://0.0.0.0:${servePort}/match.json`)
     })
 
     const httpServer = server
