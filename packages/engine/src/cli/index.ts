@@ -1,6 +1,6 @@
 import { createServer } from 'node:http'
-import { readFileSync, writeFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
 import { parseMatchConfig } from '../config/schema.js'
 import { alwaysPassAgent } from '../match/fake-agents.js'
 import type { MatchLog } from '../types/log.js'
@@ -62,13 +62,17 @@ export async function runCli(argv: string[]): Promise<void> {
     process.exit(1)
   }
 
+  mkdirSync(dirname(outPath), { recursive: true })
+
   const raw = readFileSync(configPath, 'utf-8')
   const config = parseMatchConfig(JSON.parse(raw))
 
   const agents = config.players.map((p) => {
     if (live) {
       if (p.model) {
-        const model = createModel(p.model)
+        const model = createModel(p.model, {
+          perTurnTimeoutMs: config.perTurnTimeoutMs,
+        })
         const systemPrompt = buildSystemPrompt(config, p.label)
         return new ModelBackedTankAgent(p.label, model, systemPrompt, config.maxToolCallsPerTurn)
       } else if (p.scripted) {

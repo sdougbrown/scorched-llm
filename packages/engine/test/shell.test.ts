@@ -145,7 +145,7 @@ describe('fireShell — obstacle blocks', () => {
     expect(result.kind).toBe('blocked')
   })
 
-  it('overflies obstacle when shell height is sufficient', () => {
+  it('overflies a standard obstacle near the middle of the arc', () => {
     const state = createState(
       [
         { id: 't1', position: { x: 3, y: 10 }, hp: 2, maxHp: 2, alive: true, facing: 0, damageDealt: 0, hitsLanded: 0 },
@@ -153,10 +153,24 @@ describe('fireShell — obstacle blocks', () => {
       ],
       20,
       20,
-      [{ x: 6, y: 10, height: 1 }],
+      [{ x: 6, y: 10, height: 3 }],
     )
     const { result } = fireShell(state, config, 't1', 90, 7)
     expect(result.kind).toBe('hit')
+  })
+
+  it('is blocked by standard-height cover near the target', () => {
+    const state = createState(
+      [
+        { id: 't1', position: { x: 3, y: 10 }, hp: 2, maxHp: 2, alive: true, facing: 0, damageDealt: 0, hitsLanded: 0 },
+        { id: 't2', position: { x: 10, y: 10 }, hp: 2, maxHp: 2, alive: true, facing: 180, damageDealt: 0, hitsLanded: 0 },
+      ],
+      20,
+      20,
+      [{ x: 9, y: 10, height: 3 }],
+    )
+    const { result } = fireShell(state, config, 't1', 90, 7)
+    expect(result.kind).toBe('blocked')
   })
 })
 

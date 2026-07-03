@@ -55,4 +55,15 @@ describe('createModel', () => {
     const model = createModel(spec)
     expect(model).toBeInstanceOf(HttpModel)
   })
+
+  it('passes the configured timeout to OpenAI-compatible models', () => {
+    const model = createModel(makeSpec(), { perTurnTimeoutMs: 180000 })
+    expect(model).toHaveProperty('perTurnTimeoutMs', 180000)
+  })
+
+  it('passes the configured timeout to Anthropic models', () => {
+    const spec = makeSpec({ baseURL: 'https://api.anthropic.com' })
+    const model = createModel(spec, { perTurnTimeoutMs: 180000 })
+    expect(model).toHaveProperty('perTurnTimeoutMs', 180000)
+  })
 })

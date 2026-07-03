@@ -49,6 +49,27 @@ describe('createTracePanel', () => {
     expect(title?.textContent).toBe('Tank: alpha')
     expect(panel.dataset.tankId).toBe('alpha')
   })
+
+  it('shows configured model and provider identity', () => {
+    const panel = createTracePanel('tank-0', {
+      label: 'Qwen3.6-27B',
+      startPosition: 'random',
+      model: {
+        name: 'Qwen3.6-27B',
+        model: 'qwen',
+        baseURL: 'http://sparky:4000/v1',
+      },
+    })
+    expect(panel.querySelector('.trace-panel__title')?.firstChild?.textContent).toBe('Qwen3.6-27B')
+    expect(panel.querySelector('.trace-panel__identity')?.textContent).toBe('tank-0 · qwen · sparky:4000')
+  })
+
+  it('shows the same color used by the arena tank', () => {
+    const panel = createTracePanel('tank-0', undefined, '#4a90d9')
+    const swatch = panel.querySelector('.trace-panel__tank-color')
+    expect(panel.style.getPropertyValue('--tank-color')).toBe('#4a90d9')
+    expect(swatch?.getAttribute('aria-label')).toBe('Map tank color #4a90d9')
+  })
 })
 
 describe('updateTracePanel', () => {
@@ -149,6 +170,24 @@ describe('updateTracePanel', () => {
     expect(values.join(',')).toContain('128')
     expect(values.join(',')).toContain('$0.012')
     expect(values.join(',')).toContain('450ms')
+  })
+
+  it('rounds fractional latency to a readable millisecond value', () => {
+    const turn = makeTurn({
+      modelTrace: {
+        toolCalls: [],
+        tokensIn: 256,
+        tokensOut: 128,
+        costUsd: 'unknown',
+        latencyMs: 13501.057090999995,
+        finishReason: 'stop',
+      },
+    })
+    updateTracePanel(panel, turn, 'tank-x')
+    const values = Array.from(panel.querySelectorAll('.trace-panel__stat-value')).map(
+      (el) => el.textContent,
+    )
+    expect(values).toContain('13501ms')
   })
 
   it('shows blocked result kind', () => {

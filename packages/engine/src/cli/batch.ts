@@ -194,7 +194,9 @@ export async function runBatch(argv: string[]): Promise<void> {
         return createConservativeAgent(tankId)
       }
       if (p.model && live) {
-        const model = createModel(p.model)
+        const model = createModel(p.model, {
+          perTurnTimeoutMs: config.perTurnTimeoutMs,
+        })
         const systemPrompt = buildSystemPrompt(config, p.label)
         return new ModelBackedTankAgent(p.label, model, systemPrompt, config.maxToolCallsPerTurn)
       }

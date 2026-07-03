@@ -33,6 +33,7 @@ describe('createControls', () => {
     vi.spyOn(scheduler, 'pause')
     vi.spyOn(scheduler, 'stop')
     vi.spyOn(scheduler, 'setSpeed')
+    vi.spyOn(scheduler, 'renderAt')
     mockTimeline = makeMockTimeline()
 
     // Clear style elements injected by previous tests so we can count them
@@ -69,13 +70,14 @@ describe('createControls', () => {
     expect(scheduler.pause).toHaveBeenCalled()
   })
 
-  it('stop button calls scheduler.stop()', () => {
+  it('stop button pauses and renders the initial position', () => {
     const container = createControls(scheduler, mockTimeline)
     const btnStop = container.querySelector('.controls__btn--stop') as HTMLButtonElement
 
     btnStop.click()
 
-    expect(scheduler.stop).toHaveBeenCalled()
+    expect(scheduler.pause).toHaveBeenCalled()
+    expect(scheduler.renderAt).toHaveBeenCalledWith(0)
   })
 
   it('step forward button advances timeline position and calls refresh', () => {
@@ -84,6 +86,7 @@ describe('createControls', () => {
 
     btnStepForward.click()
 
+    expect(scheduler.renderAt).toHaveBeenCalledWith(1)
     expect(mockTimeline.seek).toHaveBeenCalledWith(1)
   })
 
@@ -95,17 +98,18 @@ describe('createControls', () => {
     btnStepForward.click()
     btnStepBack.click()
 
+    expect(scheduler.renderAt).toHaveBeenLastCalledWith(0)
     expect(mockTimeline.seek).toHaveBeenLastCalledWith(0)
   })
 
-  it('scrubber input calls timeline.seek()', () => {
+  it('scrubber input renders the selected timeline position', () => {
     const container = createControls(scheduler, mockTimeline)
     const scrubber = container.querySelector('.controls__scrubber') as HTMLInputElement
 
     scrubber.value = '3'
     scrubber.dispatchEvent(new Event('input', { bubbles: true }))
 
-    expect(mockTimeline.seek).toHaveBeenCalledWith(3)
+    expect(scheduler.renderAt).toHaveBeenCalledWith(3)
   })
 
   it('speed selector calls scheduler.setSpeed()', () => {

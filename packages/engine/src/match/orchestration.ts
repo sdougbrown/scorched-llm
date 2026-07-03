@@ -605,8 +605,8 @@ export async function runMatch(
           ? { modelTrace: agentResult.modelTrace }
           : {}),
       })
-      onTurnComplete?.(log)
       log.result = matchTermination
+      onTurnComplete?.(log)
       return { log, result: matchTermination }
     }
 

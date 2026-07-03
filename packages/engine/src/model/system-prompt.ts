@@ -9,6 +9,9 @@ export function buildSystemPrompt(config: MatchConfig, label: string): string {
   const flareRadius = config.fog.flareRadius
   const hp = config.lethality.hitsToKill
   const maxToolCalls = config.maxToolCallsPerTurn
+  const obstacleHeight = config.map.obstacleHeight
+  const shellApexHeight = config.shell.apexHeight
+  const tankHeight = config.shell.tankHeight
 
   const backtick = '`'
 
@@ -28,6 +31,8 @@ export function buildSystemPrompt(config: MatchConfig, label: string): string {
     `- You can move in 8 directions: N, NE, E, SE, S, SW, W, NW.`,
     `- Maximum movement distance per move is ${moveMax} cells.`,
     `- Flare and shell are mutually exclusive — you may fire at most one offensive action (flare or shell) per turn.`,
+    `- Shells follow a fixed parabolic arc: height ${tankHeight} at the firing and target cells, peaking at height ${shellApexHeight} halfway through the flight.`,
+    `- Obstacles have height ${obstacleHeight}. A shell is blocked only where its arc is at or below the obstacle, so mid-path obstacles may be cleared while obstacles near either tank provide cover.`,
     `- Invalid tool calls don't consume actions, but 3 consecutive failures end your turn.`,
     '',
     '## Available Actions',

@@ -118,7 +118,22 @@ describe('LiveWatcher — polling behavior', () => {
     vi.useRealTimers()
   })
 
-  it('does not call onUpdate when turns unchanged', async () => {
+  it('renders the initial state before any turns complete', async () => {
+    const onUpdate = vi.fn()
+    fetchMock.mockResolvedValue({
+      ok: true,
+      text: () => Promise.resolve(JSON.stringify(makeValidLog())),
+    })
+
+    const watcher = new LiveWatcher('/api/match', onUpdate, vi.fn())
+    watcher.start()
+
+    await vi.advanceTimersByTimeAsync(0)
+    expect(onUpdate).toHaveBeenCalledTimes(1)
+    expect(onUpdate.mock.calls[0][0].turns).toHaveLength(0)
+  })
+
+  it('does not call onUpdate again when turns are unchanged', async () => {
     const onUpdate = vi.fn()
     const onComplete = vi.fn()
 
@@ -139,7 +154,7 @@ describe('LiveWatcher — polling behavior', () => {
     watcher.start()
 
     await vi.advanceTimersByTimeAsync(POLL_INTERVAL * 3)
-    expect(onUpdate).toHaveBeenCalledTimes(1)
+    expect(onUpdate).toHaveBeenCalledTimes(2)
     expect(watcher.isComplete).toBe(false)
   })
 

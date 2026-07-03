@@ -90,6 +90,17 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('power')
   })
 
+  it('explains shell arcs and obstacle cover', () => {
+    const prompt = buildSystemPrompt(makeConfig({
+      map: { ...makeConfig({}).map, obstacleHeight: 3 },
+      shell: { maxRange: 10, apexHeight: 5, tankHeight: 1 },
+    }), 'Alpha')
+    expect(prompt).toContain('parabolic arc')
+    expect(prompt).toContain('peaking at height 5')
+    expect(prompt).toContain('Obstacles have height 3')
+    expect(prompt).toContain('provide cover')
+  })
+
   it('contains pass tool description', () => {
     const prompt = buildSystemPrompt(makeConfig(), 'Alpha')
     expect(prompt).toContain('pass')

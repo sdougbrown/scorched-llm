@@ -136,8 +136,9 @@ export function createControls(
   let playing = false
   let rafId: number | null = null
 
-  function refresh(): void {
-    const pos: TimelinePosition = timeline.seek(posIndex)
+  function refresh(render: boolean = false): void {
+    const pos: TimelinePosition =
+      (render ? scheduler.renderAt(posIndex) : null) ?? timeline.seek(posIndex)
     positionDisplay.textContent = `Turn ${pos.turn}, Action ${pos.action}`
     scrubber.value = String(posIndex)
   }
@@ -160,10 +161,10 @@ export function createControls(
   })
 
   btnStop.addEventListener('click', (): void => {
-    scheduler.stop()
+    scheduler.pause()
     playing = false
     posIndex = 0
-    refresh()
+    refresh(true)
     btnPlay.textContent = '\u25B6'
     if (rafId !== null) {
       cancelAnimationFrame(rafId)
@@ -174,22 +175,21 @@ export function createControls(
   btnStepBack.addEventListener('click', (): void => {
     if (posIndex > 0) {
       posIndex--
-      refresh()
+      refresh(true)
     }
   })
 
   btnStepForward.addEventListener('click', (): void => {
     if (posIndex < timeline.length() - 1) {
       posIndex++
-      refresh()
+      refresh(true)
     }
   })
 
   scrubber.addEventListener('input', (event: Event): void => {
     const target = event.target as HTMLInputElement
     posIndex = Number(target.value)
-    timeline.seek(posIndex)
-    refresh()
+    refresh(true)
   })
 
   speedSelect.addEventListener('change', (event: Event): void => {
@@ -203,7 +203,10 @@ export function createControls(
     if (posIndex < timeline.length() - 1) {
       posIndex++
     } else {
-      posIndex = 0
+      playing = false
+      btnPlay.textContent = '\u25B6'
+      rafId = null
+      return
     }
     refresh()
     rafId = requestAnimationFrame(tick)

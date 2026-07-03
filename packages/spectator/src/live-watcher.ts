@@ -24,7 +24,8 @@ export class LiveWatcher {
     this.onUpdate = onUpdate
     this.onComplete = onComplete
     this.timerId = null
-    this.currentTurns = 0
+    // The first valid payload must render even when no turn has completed yet.
+    this.currentTurns = -1
     this._isComplete = false
     this._status = 'disconnected'
     this.consecutiveNoChange = 0

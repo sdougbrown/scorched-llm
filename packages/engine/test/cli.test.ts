@@ -51,6 +51,12 @@ describe('CLI', () => {
     expect(log.result).toBeDefined()
   })
 
+  it('creates missing output directories', async () => {
+    const nestedOutPath = join(tmpDir, 'missing', 'nested', 'output.json')
+    await runCli(['--config', configPath, '--out', nestedOutPath])
+    expect(existsSync(nestedOutPath)).toBe(true)
+  })
+
   it('requires --config flag', async () => {
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation((code) => {
       throw new Error(`process.exit(${code})`)

@@ -66,7 +66,16 @@ describe('stats-overlay', () => {
     })
   })
 
-  describe('updateStatsOverlay', () => {
+describe('updateStatsOverlay', () => {
+  it('shows configured player, model, and provider identity', () => {
+    const panel = createStatsOverlay()
+    updateStatsOverlay(panel, makeValidLog())
+    const identity = panel.querySelector('.stats-card__identity')
+    expect(identity?.textContent).toContain('A')
+    expect(identity?.textContent).toContain('test')
+    expect(identity?.textContent).toContain('localhost:11434')
+  })
+
     let panel: HTMLElement
 
     beforeEach(() => {
@@ -79,7 +88,7 @@ describe('stats-overlay', () => {
       const header = panel.querySelector('.stats-overlay__header')
       expect(header).not.toBeNull()
       expect(header?.textContent).toContain('Termination:')
-      expect(header?.textContent).toContain('Turn Limit')
+      expect(header?.textContent).toContain('In Progress')
       expect(header?.textContent).toContain('Total turns:')
       expect(header?.textContent).toContain('0')
       expect(header?.textContent).toContain('Match ID:')
@@ -129,6 +138,56 @@ describe('stats-overlay', () => {
       expect(texts).toContain('Destroyed')
       expect(panel.querySelector('.stats-card__status--alive')).not.toBeNull()
       expect(panel.querySelector('.stats-card__status--dead')).not.toBeNull()
+    })
+
+    it('refreshes status and HP from the latest action snapshot', () => {
+      const log = makeValidLog()
+      updateStatsOverlay(panel, log)
+
+      const finalState = {
+        ...log.initialState,
+        turn: 1,
+        tanks: [
+          { ...log.initialState.tanks[0], hp: 0, alive: false },
+          { ...log.initialState.tanks[1], damageDealt: 2, hitsLanded: 2 },
+        ],
+      }
+      log.turns = [{
+        turn: 1,
+        player: 'B',
+        worldview: {
+          position: { x: 9, y: 9 },
+          hp: 2,
+          facing: 180,
+          localScan: [],
+          flaredCells: [],
+          inEnemyFlare: [],
+          remainingActions: 1,
+          turn: 1,
+          isMyTurn: true,
+          aliveEnemyCount: 1,
+        },
+        actions: [{ ...makeAction(), snapshot: finalState }],
+      }]
+      log.result = {
+        terminationReason: 'last-standing',
+        placements: [
+          { tankId: 'B', rank: 1, hp: 2, damageDealt: 2, hitsLanded: 2 },
+          { tankId: 'A', rank: 2, hp: 0, damageDealt: 0, hitsLanded: 0 },
+        ],
+      }
+
+      updateStatsOverlay(panel, log)
+
+      const statuses = Array.from(panel.querySelectorAll('.stats-card__status')).map(
+        (status) => status.textContent,
+      )
+      const values = Array.from(panel.querySelectorAll('.stats-card__stat-value')).map(
+        (value) => value.textContent,
+      )
+      expect(statuses).toEqual(['Destroyed', 'Alive'])
+      expect(values).toContain('0/2')
+      expect(panel.querySelector('.stats-overlay__header')?.textContent).toContain('Last Standing')
     })
 
     it('shows action counts by type', () => {

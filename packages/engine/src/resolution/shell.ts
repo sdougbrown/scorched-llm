@@ -20,14 +20,14 @@ function angleToDelta(angle: number): { dx: number; dy: number } {
 }
 
 /**
- * Compute shell height at sample index i out of N total samples.
- * Parabola: height = apexHeight * (1 - (2i/N - 1)^2)
- * Peaks at i = N/2 with height = apexHeight, ends at i=0 and i=N with height 0.
+ * Compute shell height at sample index i out of N cells after the shooter.
+ * The arc starts and ends at tank height and reaches apexHeight halfway.
  */
-function shellHeight(i: number, N: number, apexHeight: number): number {
-  if (N <= 0) return apexHeight
-  const t = (2 * i) / N - 1
-  return apexHeight * (1 - t * t)
+function shellHeight(i: number, N: number, apexHeight: number, tankHeight: number): number {
+  if (N <= 0) return tankHeight
+  const progress = (i + 1) / N
+  const arc = 4 * progress * (1 - progress)
+  return tankHeight + (apexHeight - tankHeight) * arc
 }
 
 export function fireShell(
@@ -71,11 +71,12 @@ export function fireShell(
   const sampledCells = trajectoryCells.slice(1)
 
   const apexHeight = config.shell.apexHeight
+  const tankHeight = config.shell.tankHeight
 
   // Check each sample cell in order
   for (let i = 0; i < sampledCells.length; i++) {
     const cell = sampledCells[i]
-    const cellHeight = shellHeight(i, sampledCells.length, apexHeight)
+    const cellHeight = shellHeight(i, sampledCells.length, apexHeight, tankHeight)
 
     // Check if out of bounds
     if (cell.x < 0 || cell.x >= width || cell.y < 0 || cell.y >= state.terrain.length) {

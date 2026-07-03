@@ -355,6 +355,7 @@ describe('HttpModel', () => {
           expect(Array.isArray(body.tools)).toBe(true)
           expect(body.tools[0]).toHaveProperty('type', 'function')
           expect(body.tools[0].function).toHaveProperty('name', 'move')
+          expect(body.max_tokens).toBe(4096)
         } finally {
           delete process.env.OPENAI_API_KEY
         }

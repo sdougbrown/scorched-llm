@@ -1,5 +1,11 @@
 import type { GameState, MatchConfig, Cell } from '@scorched-llm/engine'
 
+export const TANK_COLORS = ['#4a90d9', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c'] as const
+
+export function getTankColor(index: number): string {
+  return TANK_COLORS[index % TANK_COLORS.length]
+}
+
 export interface RenderOptions {
   showFog: boolean
   showTrajectories: boolean
@@ -17,8 +23,6 @@ export function createArenaRenderer(canvas: HTMLCanvasElement): ArenaRenderer {
   const ctx = canvas.getContext('2d')!
   let width = 800
   let height = 800
-
-  const TANK_COLORS = ['#4a90d9', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c']
 
   function drawStar(cx: number, cy: number, spikes: number, outerR: number, innerR: number): void {
     ctx.beginPath()
@@ -181,7 +185,7 @@ export function createArenaRenderer(canvas: HTMLCanvasElement): ArenaRenderer {
       const radius = cellSize * 0.35
 
       // Tank body
-      ctx.fillStyle = TANK_COLORS[i % TANK_COLORS.length]
+      ctx.fillStyle = getTankColor(i)
       ctx.beginPath()
       ctx.arc(center.x, center.y, radius, 0, Math.PI * 2)
       ctx.fill()

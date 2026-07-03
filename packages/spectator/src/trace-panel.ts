@@ -1,4 +1,5 @@
-import type { TurnEvent, ActionResult, Tool } from '@scorched-llm/engine'
+import type { TurnEvent, ActionResult, Tool, PlayerSpec } from '@scorched-llm/engine'
+import { getPlayerIdentity } from './player-identity.js'
 
 function formatTool(tool: Tool): string {
   switch (tool.kind) {
@@ -55,6 +56,8 @@ function injectStyles(): void {
   style.dataset.tracePanel = 'true'
   style.textContent = `
     .trace-panel {
+      flex: 0 0 auto;
+      min-width: 0;
       background: #1a1a2e;
       color: #e0e0e0;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -62,6 +65,7 @@ function injectStyles(): void {
       border: 1px solid #2a2a4a;
       border-radius: 6px;
       overflow: hidden;
+      border-left: 4px solid var(--tank-color, #2a2a4a);
     }
 
     .trace-panel__title {
@@ -74,10 +78,29 @@ function injectStyles(): void {
       color: #7f5af0;
     }
 
+    .trace-panel__identity {
+      display: block;
+      margin-top: 3px;
+      color: #777;
+      font-size: 10px;
+      font-weight: 400;
+      overflow-wrap: anywhere;
+    }
+
+    .trace-panel__tank-color {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      margin-right: 7px;
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      border-radius: 50%;
+      background: var(--tank-color, transparent);
+      vertical-align: 1px;
+    }
+
     .trace-panel__content {
       padding: 12px 14px;
-      max-height: 600px;
-      overflow-y: auto;
+      min-width: 0;
     }
 
     .trace-panel__empty {
@@ -100,7 +123,7 @@ function injectStyles(): void {
 
     .trace-panel__stats {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(120px, 100%), 1fr));
       gap: 8px;
       margin: 10px 0;
       background: #0f0f23;
@@ -110,6 +133,7 @@ function injectStyles(): void {
     }
 
     .trace-panel__stat-label {
+      display: block;
       font-size: 10px;
       text-transform: uppercase;
       letter-spacing: 0.06em;
@@ -117,8 +141,11 @@ function injectStyles(): void {
     }
 
     .trace-panel__stat-value {
+      display: block;
+      max-width: 100%;
       font-size: 13px;
       color: #e0e0e0;
+      overflow-wrap: anywhere;
     }
 
     .trace-panel__calls {
@@ -134,8 +161,10 @@ function injectStyles(): void {
       border-radius: 4px;
       padding: 8px 12px;
       display: flex;
-      align-items: center;
+      align-items: flex-start;
+      flex-wrap: wrap;
       gap: 8px;
+      min-width: 0;
     }
 
     .trace-panel__call--ok {
@@ -162,17 +191,22 @@ function injectStyles(): void {
     }
 
     .trace-panel__call-params {
+      flex: 1 1 160px;
+      min-width: 0;
       color: #aaa;
       font-size: 11px;
-      white-space: nowrap;
+      white-space: normal;
+      overflow-wrap: anywhere;
     }
 
     .trace-panel__call-result {
       margin-left: auto;
+      max-width: 100%;
       font-size: 11px;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.04em;
+      overflow-wrap: anywhere;
     }
 
     .trace-panel__call-result--ok {
@@ -202,15 +236,35 @@ function injectStyles(): void {
   document.head.appendChild(style)
 }
 
-export function createTracePanel(tankId: string): HTMLElement {
+export function createTracePanel(tankId: string, player?: PlayerSpec, tankColor?: string): HTMLElement {
   injectStyles()
 
   const panel = document.createElement('div')
   panel.className = 'trace-panel'
+  if (tankColor) {
+    panel.style.setProperty('--tank-color', tankColor)
+  }
 
   const title = document.createElement('h3')
   title.className = 'trace-panel__title'
-  title.textContent = `Tank: ${tankId}`
+  const identity = getPlayerIdentity(tankId, player)
+
+  if (tankColor) {
+    const colorSwatch = document.createElement('span')
+    colorSwatch.className = 'trace-panel__tank-color'
+    colorSwatch.setAttribute('role', 'img')
+    colorSwatch.setAttribute('aria-label', `Map tank color ${tankColor}`)
+    title.appendChild(colorSwatch)
+  }
+
+  title.append(player ? identity.label : `Tank: ${tankId}`)
+
+  if (player) {
+    const identityEl = document.createElement('span')
+    identityEl.className = 'trace-panel__identity'
+    identityEl.textContent = identity.details
+    title.appendChild(identityEl)
+  }
 
   const content = document.createElement('div')
   content.className = 'trace-panel__content'
@@ -264,7 +318,7 @@ export function updateTracePanel(panel: HTMLElement, turn: TurnEvent, _tankId: s
     { label: 'Tokens In', value: String(trace.tokensIn) },
     { label: 'Tokens Out', value: String(trace.tokensOut) },
     { label: 'Cost', value: formatCost(trace.costUsd) },
-    { label: 'Latency', value: `${trace.latencyMs}ms` },
+    { label: 'Latency', value: `${Math.round(trace.latencyMs)}ms` },
     { label: 'Finish Reason', value: trace.finishReason },
   ]
 

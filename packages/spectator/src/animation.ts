@@ -13,14 +13,20 @@ export class AnimationScheduler {
   private renderer: ArenaRenderer | null = null
   private config: MatchConfig | null = null
 
-  play(timeline: Timeline, renderer: ArenaRenderer, config: MatchConfig, fps: number = 30): void {
+  play(
+    timeline: Timeline,
+    renderer: ArenaRenderer,
+    config: MatchConfig,
+    fps: number = 30,
+    startIndex: number = 0,
+  ): void {
     this.timeline = timeline
     this.renderer = renderer
     this.config = config
     this.fps = fps
     this.frameInterval = 1000 / fps
     this.playing = true
-    this.currentIndex = 0
+    this.currentIndex = Math.max(0, Math.min(startIndex, timeline.length() - 1))
     this.lastFrameTime = performance.now()
 
     // Render the first frame immediately
@@ -28,7 +34,11 @@ export class AnimationScheduler {
     renderer.render(pos.state, config, { showFog: true, showTrajectories: false, animate: true })
     this.currentIndex++
 
-    this.tick()
+    if (this.currentIndex >= timeline.length()) {
+      this.playing = false
+    } else {
+      this.tick()
+    }
   }
 
   pause(): void {
@@ -74,6 +84,21 @@ export class AnimationScheduler {
     return this.timeline.seek(this.currentIndex)
   }
 
+  renderAt(position: number): TimelinePosition | null {
+    if (!this.timeline || !this.renderer || !this.config) return null
+
+    this.pause()
+    const clampedPosition = Math.max(0, Math.min(position, this.timeline.length() - 1))
+    const pos = this.timeline.seek(clampedPosition)
+    this.renderer.render(pos.state, this.config, {
+      showFog: true,
+      showTrajectories: false,
+      animate: true,
+    })
+    this.currentIndex = clampedPosition + 1
+    return pos
+  }
+
   private tick = (): void => {
     if (!this.playing || !this.timeline || !this.renderer || !this.config) return
 
@@ -89,7 +114,7 @@ export class AnimationScheduler {
       this.currentIndex++
 
       if (this.currentIndex >= this.timeline.length()) {
-        this.currentIndex = 0
+        this.playing = false
       }
     }
 

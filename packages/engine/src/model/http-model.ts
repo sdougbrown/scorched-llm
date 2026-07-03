@@ -203,6 +203,10 @@ export class HttpModel implements Model {
       body.max_tokens = request.maxTokens
     } else if (this.spec.parameters?.maxTokens != null) {
       body.max_tokens = this.spec.parameters.maxTokens
+    } else {
+      // Do not leave local/OpenAI-compatible backends free to choose an
+      // effectively unbounded generation limit.
+      body.max_tokens = 4096
     }
 
     const headers: Record<string, string> = {

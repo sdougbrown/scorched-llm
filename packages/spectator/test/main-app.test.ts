@@ -3,6 +3,7 @@ import type { MatchLog } from '@scorched-llm/engine'
 
 // Mock createArenaRenderer
 vi.mock('../src/arena.js', () => ({
+  getTankColor: vi.fn((index: number) => ['#4a90d9', '#e74c3c'][index]),
   createArenaRenderer: vi.fn((canvas: HTMLCanvasElement) => ({
     canvas,
     ctx: {} as CanvasRenderingContext2D,
@@ -137,6 +138,7 @@ describe('initApp', () => {
   const createTimelineMock = timelineModule.createTimeline
   const createControlsMock = controlsModule.createControls
   const createTracePanelMock = tracePanelModule.createTracePanel
+  const updateTracePanelMock = tracePanelModule.updateTracePanel
   const AnimationSchedulerMock = animationModule.AnimationScheduler
   const createArenaRendererMock = arenaModule.createArenaRenderer
   const createStatsOverlayMock = statsModule.createStatsOverlay
@@ -146,6 +148,7 @@ describe('initApp', () => {
     vi.mocked(createTimelineMock).mockClear()
     vi.mocked(createControlsMock).mockClear()
     vi.mocked(createTracePanelMock).mockClear()
+    vi.mocked(updateTracePanelMock).mockClear()
     vi.mocked(AnimationSchedulerMock).mockClear()
     vi.mocked(createArenaRendererMock).mockClear()
     vi.mocked(createStatsOverlayMock).mockClear()
@@ -175,6 +178,12 @@ describe('initApp', () => {
     expect(root?.className).toBe('app')
   })
 
+  it('groups the arena and scrollable traces in the main viewport', () => {
+    const main = document.querySelector('.app__main')
+    expect(main?.querySelector('.app__arena-container')).toBeTruthy()
+    expect(main?.querySelector('.app__traces')).toBeTruthy()
+  })
+
   it('initial state shows match loader (loader div is visible)', () => {
     const loader = document.querySelector('.app__loader')
     expect(loader).toBeTruthy()
@@ -201,16 +210,51 @@ describe('initApp', () => {
   it('trace panels are created for each tank', () => {
     fireMatchLoad(makeLog())
 
-    expect(createTracePanelMock).toHaveBeenCalledWith('A')
-    expect(createTracePanelMock).toHaveBeenCalledWith('B')
+    expect(createTracePanelMock).toHaveBeenCalledWith(
+      'A',
+      expect.objectContaining({ label: 'A' }),
+      '#4a90d9',
+    )
+    expect(createTracePanelMock).toHaveBeenCalledWith(
+      'B',
+      expect.objectContaining({ label: 'B' }),
+      '#e74c3c',
+    )
   })
 
-  it('stats overlay is created and initially visible after match load', () => {
+  it('populates each tank panel with its latest completed turn', () => {
+    const turn = {
+      turn: 1,
+      player: 'A',
+      actions: [],
+      worldview: {
+        position: { x: 0, y: 0 },
+        hp: 2,
+        facing: 0,
+        localScan: [],
+        flaredCells: [],
+        inEnemyFlare: [],
+        remainingActions: 2,
+        turn: 1,
+        isMyTurn: true,
+        aliveEnemyCount: 1,
+      },
+    }
+    fireMatchLoad(makeLog({ turns: [turn] }))
+
+    expect(updateTracePanelMock).toHaveBeenCalledWith(
+      expect.objectContaining({ dataset: expect.objectContaining({ tankId: 'A' }) }),
+      turn,
+      'A',
+    )
+  })
+
+  it('stats overlay remains hidden until the Stats button is used', () => {
     fireMatchLoad(makeLog())
 
     const statsEl = document.querySelector('.app__stats')
     expect(statsEl).toBeTruthy()
-    expect(statsEl?.classList.contains('app__stats--hidden')).toBe(false)
+    expect(statsEl?.classList.contains('app__stats--hidden')).toBe(true)
   })
 
   it('Space key toggles play/pause on scheduler', () => {
@@ -261,11 +305,11 @@ describe('initApp', () => {
     fireMatchLoad(makeLog())
 
     const statsEl = document.querySelector('.app__stats')
-    expect(statsEl?.classList.contains('app__stats--hidden')).toBe(false)
+    expect(statsEl?.classList.contains('app__stats--hidden')).toBe(true)
 
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
 
-    expect(statsEl?.classList.contains('app__stats--hidden')).toBe(true)
+    expect(statsEl?.classList.contains('app__stats--hidden')).toBe(false)
   })
 
   it('error state shows error message element', () => {

@@ -1,12 +1,12 @@
-import { createArenaRenderer } from './arena.js'
+import { createArenaRenderer, getTankColor } from './arena.js'
 import type { ArenaRenderer } from './arena.js'
 import { createTimeline } from './timeline.js'
 import type { Timeline } from './timeline.js'
 import { AnimationScheduler } from './animation.js'
 import { createMatchLoader } from './match-loader.js'
 import { createControls } from './controls.js'
-import { createTracePanel } from './trace-panel.js'
-import { updateStatsOverlay } from './stats-overlay.js'
+import { createTracePanel, updateTracePanel } from './trace-panel.js'
+import { createStatsOverlay, updateStatsOverlay } from './stats-overlay.js'
 import { LiveWatcher } from './live-watcher.js'
 import type { MatchLog } from '@scorched-llm/engine'
 
@@ -87,6 +87,7 @@ html, body {
   overflow: hidden;
   background: #0a0a14;
   min-width: 0;
+  min-height: 0;
 }
 
 .app__arena-container canvas {
@@ -95,14 +96,25 @@ html, body {
   height: 100%;
 }
 
+.app__main {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .app__traces {
-  width: 360px;
+  width: min(380px, 40vw);
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
   padding: 8px;
+  min-height: 0;
+  overscroll-behavior: contain;
   overflow-y: auto;
+  overflow-x: hidden;
   background: #0d0d1a;
   border-left: 1px solid #2a2a4a;
 }
@@ -329,12 +341,14 @@ function buildApp(): AppState {
   const canvas = document.createElement('canvas')
   arenaContainer.appendChild(canvas)
 
-  root.appendChild(arenaContainer)
-
   // Traces panel
   const tracesEl = document.createElement('div')
   tracesEl.className = 'app__traces'
-  root.appendChild(tracesEl)
+
+  const mainEl = document.createElement('div')
+  mainEl.className = 'app__main'
+  mainEl.append(arenaContainer, tracesEl)
+  root.appendChild(mainEl)
 
   // Controls placeholder — will be replaced on match load
   const controlsPlaceholder = document.createElement('div')
@@ -345,6 +359,7 @@ function buildApp(): AppState {
   // Stats overlay
   const statsEl = document.createElement('div')
   statsEl.className = 'app__stats app__stats--hidden'
+  statsEl.appendChild(createStatsOverlay())
   root.appendChild(statsEl)
   state.statsEl = statsEl
 
@@ -404,6 +419,7 @@ function onLoadMatch(
   state: AppState,
   log: MatchLog,
   ctx: BuildContext,
+  startPosition: number = 0,
 ): void {
   // Hide loader
   state.loaderEl!.innerHTML = ''
@@ -411,6 +427,11 @@ function onLoadMatch(
 
   // Update header
   ctx.headerInfo.textContent = `${log.metadata.matchId} — ${log.turns.length} turns`
+
+  state.scheduler?.stop()
+  if (state.resizeHandler) {
+    window.removeEventListener('resize', state.resizeHandler)
+  }
 
   // Create scheduler
   const scheduler = new AnimationScheduler()
@@ -434,34 +455,41 @@ function onLoadMatch(
   state.resizeHandler = onResize
 
   // Start scheduler
-  scheduler.play(timeline, renderer, log.config, 30)
+  scheduler.play(timeline, renderer, log.config, 30, startPosition)
 
   // Replace controls placeholder with real controls
   const controls = createControls(scheduler, timeline)
-  ctx.controlsPlaceholder.replaceWith(controls)
+  ;(state.controlsEl ?? ctx.controlsPlaceholder).replaceWith(controls)
   state.controlsEl = controls
 
   // Create trace panels for each tank
   state.tracePanels.clear()
   ctx.tracesEl.innerHTML = ''
 
-  for (const tank of log.initialState.tanks) {
-    const panel = createTracePanel(tank.id)
+  for (let tankIndex = 0; tankIndex < log.initialState.tanks.length; tankIndex++) {
+    const tank = log.initialState.tanks[tankIndex]
+    const panel = createTracePanel(
+      tank.id,
+      log.config.players[tankIndex],
+      getTankColor(tankIndex),
+    )
     state.tracePanels.set(tank.id, panel)
     ctx.tracesEl.appendChild(panel)
+
+    let latestTurn = undefined
+    for (let i = log.turns.length - 1; i >= 0; i--) {
+      if (log.turns[i].player === tank.id) {
+        latestTurn = log.turns[i]
+        break
+      }
+    }
+    if (latestTurn) {
+      updateTracePanel(panel, latestTurn, tank.id)
+    }
   }
 
   // Update stats overlay content
-  state.statsEl!.classList.remove('app__stats--hidden')
   updateStatsOverlay(state.statsEl!, log)
-
-  // Initialize trace panels to empty
-  for (const [, panel] of state.tracePanels) {
-    const content = panel.querySelector('.trace-panel__content')
-    if (content && typeof content === 'object' && 'innerHTML' in content) {
-      ;(content as HTMLElement).innerHTML = '<div class="trace-panel__empty">No data yet</div>'
-    }
-  }
 
   state.log = log
 }
@@ -477,20 +505,9 @@ function startLiveWatch(state: AppState, url: string, ctx: BuildContext): void {
         return
       }
 
-      const oldEndIndex = oldLog.turns.length - 1
-      const atEndOfTimeline = state.posIndex >= oldEndIndex
-
-      onLoadMatch(state, log, ctx)
-
-      if (atEndOfTimeline) {
-        const newPosIndex = log.turns.length - 1
-        const pos = state.timeline!.seek(newPosIndex)
-        state.renderer!.render(pos.state, log.config, { showFog: true, showTrajectories: false, animate: true })
-        state.posIndex = newPosIndex
-      } else {
-        const pos = state.timeline!.seek(state.posIndex)
-        state.renderer!.render(pos.state, log.config, { showFog: true, showTrajectories: false, animate: true })
-      }
+      const firstNewPosition = state.timeline?.length() ?? 0
+      onLoadMatch(state, log, ctx, firstNewPosition)
+      state.posIndex = Math.max(0, firstNewPosition)
 
       ctx.headerInfo.textContent = `${log.metadata.matchId} — ${log.turns.length} turns`
     },

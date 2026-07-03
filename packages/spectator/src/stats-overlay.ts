@@ -1,4 +1,15 @@
 import type { MatchLog, TurnEvent } from '@scorched-llm/engine'
+import { getPlayerIdentity } from './player-identity.js'
+import { reduceToState } from './reducer.js'
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;')
+}
 
 const CSS = `
 .stats-overlay {
@@ -59,6 +70,20 @@ const CSS = `
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.stats-card__identity {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.stats-card__identity-detail {
+  margin-top: 2px;
+  color: #8b949e;
+  font-size: 10px;
+  font-weight: 400;
+  overflow-wrap: anywhere;
 }
 
 .stats-card__status {
@@ -185,9 +210,9 @@ export function updateStatsOverlay(panel: HTMLElement, log: MatchLog): void {
   const content = panel.querySelector('.stats-overlay__content')
   const empty = panel.querySelector('.stats-overlay__empty')
 
-  if (!content || !empty) return
+  if (!content) return
 
-  empty.remove()
+  empty?.remove()
 
   // Termination reason display
   const terminationLabels: Record<string, string> = {
@@ -217,14 +242,27 @@ export function updateStatsOverlay(panel: HTMLElement, log: MatchLog): void {
   }
 
   let headerHtml = ''
-  const termLabel = terminationLabels[log.result.terminationReason] ?? log.result.terminationReason
+  const isComplete = log.result.placements.length > 0
+  const termLabel = isComplete
+    ? (terminationLabels[log.result.terminationReason] ?? log.result.terminationReason)
+    : 'In Progress'
   headerHtml += `<div class="stats-overlay__header">`
   headerHtml += `Termination: <span>${termLabel}</span> &middot; Total turns: <span>${log.turns.length}</span> &middot; Match ID: <span>${log.metadata.matchId}</span>`
   headerHtml += `</div>`
 
   let cardsHtml = ''
+  const latestState = log.turns.length > 0
+    ? reduceToState(
+        log,
+        log.turns.length - 1,
+        log.turns[log.turns.length - 1].actions.length - 1,
+      )
+    : log.initialState
 
-  for (const tank of log.initialState.tanks) {
+  for (let tankIndex = 0; tankIndex < log.initialState.tanks.length; tankIndex++) {
+    const initialTank = log.initialState.tanks[tankIndex]
+    const tank = latestState.tanks.find((candidate) => candidate.id === initialTank.id) ?? initialTank
+    const identity = getPlayerIdentity(tank.id, log.config.players[tankIndex])
     const tankTurns = turnsByPlayer.get(tank.id) ?? []
 
     // Count actions by kind
@@ -304,7 +342,9 @@ export function updateStatsOverlay(panel: HTMLElement, log: MatchLog): void {
 
     cardsHtml += `<div class="stats-card">`
     cardsHtml += `  <div class="stats-card__title">`
-    cardsHtml += `    <span>Tank ${tank.id}</span>`
+    cardsHtml += `    <span class="stats-card__identity">${escapeHtml(identity.label)}`
+    cardsHtml += `      <span class="stats-card__identity-detail">${escapeHtml(identity.details)}</span>`
+    cardsHtml += `    </span>`
     cardsHtml += `    <span class="stats-card__status ${statusClass}">${statusText}</span>`
     cardsHtml += `  </div>`
     cardsHtml += `  <div class="stats-card__body">`

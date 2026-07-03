@@ -71,6 +71,33 @@ describe('AnimationScheduler', () => {
     expect(mockRenderer.render).toHaveBeenCalled()
   })
 
+  it('stops on the final frame instead of looping', () => {
+    scheduler.play(mockTimeline, mockRenderer, config, 10)
+    vi.advanceTimersByTime(600)
+
+    expect(scheduler.isPlaying).toBe(false)
+    const positions = vi.mocked(mockTimeline.seek).mock.calls.map(([position]) => position)
+    expect(positions.filter((position) => position === 0)).toHaveLength(1)
+  })
+
+  it('can begin playback at a newly appended timeline position', () => {
+    scheduler.play(mockTimeline, mockRenderer, config, 10, 3)
+    expect(mockTimeline.seek).toHaveBeenCalledWith(3)
+  })
+
+  it('renders a manually selected timeline position while paused', () => {
+    scheduler.play(mockTimeline, mockRenderer, config, 10)
+    const pos = scheduler.renderAt(3)
+
+    expect(mockTimeline.seek).toHaveBeenLastCalledWith(3)
+    expect(mockRenderer.render).toHaveBeenCalledWith(
+      pos?.state,
+      config,
+      expect.objectContaining({ animate: true }),
+    )
+    expect(scheduler.isPlaying).toBe(false)
+  })
+
   it('pause stops playing', () => {
     scheduler.play(mockTimeline, mockRenderer, config, 10)
     scheduler.pause()

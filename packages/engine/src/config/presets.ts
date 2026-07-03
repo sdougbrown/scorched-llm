@@ -18,7 +18,7 @@ export const PRESETS: Record<string, (seed: number, players: PlayerSpec[]) => Ma
     if (players.length !== 2) throw new Error(`Duel preset requires exactly 2 players, got ${players.length}`)
     return parseMatchConfig({
       ...commonFields,
-      map: { width: 20, height: 20, obstacleDensity: 0.1, generatorVersion: 'v1', obstacleHeight: 10 },
+      map: { width: 20, height: 20, obstacleDensity: 0.1, generatorVersion: 'v1', obstacleHeight: 3 },
       actionEconomy: 'double',
       turnLimit: 50,
       seed,
@@ -29,7 +29,7 @@ export const PRESETS: Record<string, (seed: number, players: PlayerSpec[]) => Ma
     if (players.length !== 2) throw new Error(`Blitz preset requires exactly 2 players, got ${players.length}`)
     return parseMatchConfig({
       ...commonFields,
-      map: { width: 15, height: 15, obstacleDensity: 0.1, generatorVersion: 'v1', obstacleHeight: 10 },
+      map: { width: 15, height: 15, obstacleDensity: 0.1, generatorVersion: 'v1', obstacleHeight: 3 },
       actionEconomy: 'single',
       turnLimit: 30,
       lethality: { hitsToKill: 1 },
@@ -41,7 +41,7 @@ export const PRESETS: Record<string, (seed: number, players: PlayerSpec[]) => Ma
     if (players.length !== 4) throw new Error(`Survival preset requires exactly 4 players, got ${players.length}`)
     return parseMatchConfig({
       ...commonFields,
-      map: { width: 25, height: 25, obstacleDensity: 0.12, generatorVersion: 'v1', obstacleHeight: 10 },
+      map: { width: 25, height: 25, obstacleDensity: 0.12, generatorVersion: 'v1', obstacleHeight: 3 },
       fog: { localRadius: 3, flareRadius: 3, flareDuration: 'one-round-global' },
       actionEconomy: 'double',
       shell: { maxRange: 12, apexHeight: 5, tankHeight: 1 },
