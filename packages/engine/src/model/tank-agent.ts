@@ -1,7 +1,13 @@
-import type { TankAgent, AgentMessage, ToolSpec } from '../match/fake-agents.js'
-import type { WorldView } from '../types/events.js'
+import type {
+  TankAgent,
+  AgentMessage,
+  AgentTurnResult,
+  ToolExecutor,
+  ToolSpec,
+} from '../match/fake-agents.js'
+import type { ModelTrace, WorldView } from '../types/events.js'
 import type { ToolCall } from '../types/tool.js'
-import type { Model, ModelRequest, NormalizedToolCall } from './types.js'
+import type { Model, ModelRequest, NormalizedModelResponse, NormalizedToolCall } from './types.js'
 import { serializeWorldView } from './worldview-serializer.js'
 
 /** Valid tool names the model can return. */
@@ -112,7 +118,11 @@ export class ModelBackedTankAgent implements TankAgent {
     this.messages = [{ role: 'system', content: systemPrompt }]
   }
 
-  async takeTurn(worldview: WorldView, tools: ToolSpec[]): Promise<ToolCall[]> {
+  async takeTurn(
+    worldview: WorldView,
+    tools: ToolSpec[],
+    executeTool?: ToolExecutor,
+  ): Promise<ToolCall[] | AgentTurnResult> {
     // 1. Append worldview as user message
     const description = serializeWorldView(worldview)
     this.messages.push({ role: 'user', content: description })
@@ -121,6 +131,9 @@ export class ModelBackedTankAgent implements TankAgent {
     const allToolCalls: ToolCall[] = []
     let finishReason = ''
     let callCount = 0
+    let attemptedCallCount = 0
+    const responses: NormalizedModelResponse[] = []
+    let turnEnded = false
 
     do {
       // 2a. Query the model with full history
@@ -129,6 +142,8 @@ export class ModelBackedTankAgent implements TankAgent {
         tools,
       }
       const response = await this.model.query(request)
+      responses.push(response)
+      attemptedCallCount += response.toolCalls.length
       finishReason = response.finishReason
 
       // 2b. Parse tool calls
@@ -156,15 +171,82 @@ export class ModelBackedTankAgent implements TankAgent {
         content: typeof assistantContent === 'string' ? assistantContent : JSON.stringify(assistantContent),
       })
 
-      // 2d. Accumulate tool calls
-      // Note: real tool results are injected by the orchestration layer after
-      // the engine executes each call. The agent does not append fake results
-      // — the model will see actual outcomes in the next turn's worldview.
-      allToolCalls.push(...calls)
-      callCount += calls.length
-    } while (finishReason === 'tool_calls' && callCount < this.maxToolCallsPerTurn)
+      // 2d. Execute validated calls in order and provide their real outcomes
+      // before asking the model to continue.
+      const answeredToolCallIds = new Set<string>()
+      for (const call of calls) {
+        if (callCount >= this.maxToolCallsPerTurn || turnEnded) break
+        allToolCalls.push(call)
+        callCount++
 
-    // 3. Return all accumulated tool calls
-    return allToolCalls
+        if (executeTool != null) {
+          const execution = await executeTool(call)
+          this.messages.push({
+            role: 'tool',
+            content: JSON.stringify({
+              toolCallId: call.id,
+              content: JSON.stringify({
+                result: execution.result,
+                worldview: execution.worldview,
+                ...(execution.knownMap == null ? {} : { knownMap: execution.knownMap }),
+                turnEnded: execution.turnEnded,
+              }),
+            }),
+          })
+          answeredToolCallIds.add(call.id)
+          turnEnded = execution.turnEnded
+        }
+      }
+      if (executeTool != null) {
+        // Provider protocols require one result for every advertised tool call,
+        // including calls rejected during normalization or skipped at the cap.
+        for (const rawCall of response.toolCalls) {
+          if (answeredToolCallIds.has(rawCall.id)) continue
+          this.messages.push({
+            role: 'tool',
+            content: JSON.stringify({
+              toolCallId: rawCall.id,
+              content: JSON.stringify({
+                result: {
+                  kind: 'invalid',
+                  reason: normalizeToolCall(rawCall) == null
+                    ? 'Invalid tool name or arguments'
+                    : 'Turn has ended or tool call limit reached',
+                },
+                turnEnded:
+                  turnEnded ||
+                  callCount >= this.maxToolCallsPerTurn ||
+                  attemptedCallCount >= this.maxToolCallsPerTurn,
+              }),
+            }),
+          })
+        }
+      }
+    } while (
+      !turnEnded &&
+      finishReason === 'tool_calls' &&
+      attemptedCallCount < this.maxToolCallsPerTurn
+    )
+
+    if (executeTool == null) {
+      return allToolCalls
+    }
+
+    const costUnknown = responses.some((response) => response.costUsd === 'unknown')
+    const trace: ModelTrace = {
+      toolCalls: allToolCalls,
+      assistantText: responses
+        .map((response) => response.assistantText)
+        .filter((text): text is string => text != null && text.length > 0)
+        .join('\n') || undefined,
+      tokensIn: responses.reduce((sum, response) => sum + response.tokensIn, 0),
+      tokensOut: responses.reduce((sum, response) => sum + response.tokensOut, 0),
+      costUsd: costUnknown
+        ? 'unknown'
+        : responses.reduce((sum, response) => sum + (response.costUsd as number), 0),
+      latencyMs: responses.reduce((sum, response) => sum + response.latencyMs, 0),
+      finishReason: responses.at(-1)?.finishReason ?? 'unknown',
+    }
+    return { toolCalls: allToolCalls, modelTrace: trace, executed: true }
   }
 }

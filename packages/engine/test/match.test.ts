@@ -4,6 +4,8 @@ import { alwaysPassAgent, fixtureCallAgent } from '../src/match/fake-agents.js'
 import type { MatchConfig } from '../src/config/schema.js'
 import type { MatchLog } from '../src/types/log.js'
 import type { ToolCall } from '../src/types/tool.js'
+import type { Model, ModelRequest, NormalizedModelResponse } from '../src/model/types.js'
+import { ModelBackedTankAgent } from '../src/model/tank-agent.js'
 
 function makeConfig(overrides: Partial<MatchConfig>): MatchConfig {
   return {
@@ -122,5 +124,70 @@ describe('runMatch — basic orchestration', () => {
       const actionEvents = log.turns[i].actions.filter((a) => a.kind === 'pass')
       expect(actionEvents.length).toBe(2)
     }
+  })
+})
+
+describe('runMatch — model agent protocol', () => {
+  it('executes calls incrementally, feeds results back, and records an aggregate trace', async () => {
+    const requests: ModelRequest[] = []
+    const responses: NormalizedModelResponse[] = [
+      {
+        toolCalls: [{ id: 'look-1', name: 'look', arguments: {} }],
+        tokensIn: 10,
+        tokensOut: 2,
+        costUsd: 0.01,
+        latencyMs: 4,
+        finishReason: 'tool_calls',
+      },
+      {
+        toolCalls: [{ id: 'pass-1', name: 'pass', arguments: {} }],
+        tokensIn: 12,
+        tokensOut: 3,
+        costUsd: 0.02,
+        latencyMs: 6,
+        finishReason: 'stop',
+      },
+    ]
+    const model: Model = {
+      query: async (request) => {
+        requests.push(structuredClone(request))
+        return responses.shift()!
+      },
+    }
+    const config = makeConfig({
+      turnLimit: 2,
+      actionEconomy: 'single',
+      map: { width: 8, height: 8, obstacleDensity: 0, generatorVersion: 'v1', obstacleHeight: 10 },
+      players: [
+        { label: 'p1', startPosition: { x: 1, y: 1 } },
+        { label: 'p2', startPosition: { x: 2, y: 1 } },
+      ],
+    })
+    const agent = new ModelBackedTankAgent('p1', model, 'system', 3)
+
+    const { log } = await runMatch(config, [agent, alwaysPassAgent('p2')])
+
+    expect(requests).toHaveLength(2)
+    const toolResult = requests[1].messages.at(-1)
+    expect(toolResult?.role).toBe('tool')
+    expect(toolResult?.content).toContain('"toolCallId":"look-1"')
+    const wrappedResult = JSON.parse(toolResult!.content) as { content: string }
+    const resultContent = JSON.parse(wrappedResult.content) as { worldview: { visibleEnemies: unknown[] } }
+    expect(resultContent.worldview.visibleEnemies).toHaveLength(1)
+    expect(log.turns[0].actions.map((action) => action.call.id)).toEqual(['look-1', 'pass-1'])
+    expect(log.turns[0].modelTrace).toMatchObject({
+      tokensIn: 22,
+      tokensOut: 5,
+      costUsd: 0.03,
+      latencyMs: 10,
+      finishReason: 'stop',
+    })
+
+    const moveSchema = requests[0].tools.find((tool) => tool.name === 'move')?.parameters
+    expect(moveSchema).toMatchObject({
+      type: 'object',
+      required: ['direction', 'distance'],
+      additionalProperties: false,
+    })
   })
 })

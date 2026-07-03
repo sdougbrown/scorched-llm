@@ -68,6 +68,25 @@ export function buildWorldView(
   const aliveEnemyCount = state.tanks.filter(
     (t) => t.id !== tankId && t.alive,
   ).length
+  const visibleCoordinates = new Set<string>()
+  for (const cell of localScan) {
+    visibleCoordinates.add(`${cell.coord.x},${cell.coord.y}`)
+  }
+  for (const visible of flaredCells) {
+    visibleCoordinates.add(`${visible.cell.coord.x},${visible.cell.coord.y}`)
+  }
+  const visibleEnemies = state.tanks
+    .filter(
+      (other) =>
+        other.id !== tankId &&
+        other.alive &&
+        visibleCoordinates.has(`${other.position.x},${other.position.y}`),
+    )
+    .map((other) => ({
+      id: other.id,
+      position: { ...other.position },
+      hp: other.hp,
+    }))
 
   return {
     position: { ...tank.position },
@@ -80,5 +99,6 @@ export function buildWorldView(
     turn: state.turn,
     isMyTurn: state.tanks[state.currentPlayerIndex]?.id === tankId,
     aliveEnemyCount,
+    visibleEnemies,
   }
 }

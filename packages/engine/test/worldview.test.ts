@@ -201,14 +201,36 @@ describe('buildWorldView — in enemy flare', () => {
 })
 
 describe('buildWorldView — hidden enemies', () => {
-  it('does not include enemy tank position unless flared', () => {
+  it('does not include an enemy outside revealed cells', () => {
     const state = createState([
       { id: 't1', position: { x: 10, y: 10 }, hp: 3, maxHp: 3, alive: true, facing: 0, damageDealt: 0, hitsLanded: 0 },
       { id: 't2', position: { x: 15, y: 15 }, hp: 3, maxHp: 3, alive: true, facing: 180, damageDealt: 0, hitsLanded: 0 },
     ])
     const view = buildWorldView(state, config, 't1', 2)
-    // The worldview does not include enemy positions directly
-    expect(view).not.toHaveProperty('enemyPositions')
+    expect(view.visibleEnemies).toEqual([])
+  })
+
+  it('includes enemies in local vision', () => {
+    const state = createState([
+      { id: 't1', position: { x: 10, y: 10 }, hp: 3, maxHp: 3, alive: true, facing: 0, damageDealt: 0, hitsLanded: 0 },
+      { id: 't2', position: { x: 12, y: 10 }, hp: 2, maxHp: 3, alive: true, facing: 180, damageDealt: 0, hitsLanded: 0 },
+    ])
+    const view = buildWorldView(state, config, 't1', 2)
+    expect(view.visibleEnemies).toEqual([
+      { id: 't2', position: { x: 12, y: 10 }, hp: 2 },
+    ])
+  })
+
+  it('includes enemies revealed by a flare', () => {
+    const state = createState(
+      [
+        { id: 't1', position: { x: 10, y: 10 }, hp: 3, maxHp: 3, alive: true, facing: 0, damageDealt: 0, hitsLanded: 0 },
+        { id: 't2', position: { x: 15, y: 15 }, hp: 2, maxHp: 3, alive: true, facing: 180, damageDealt: 0, hitsLanded: 0 },
+      ],
+      [{ id: 'f1', targetCell: { x: 15, y: 15 }, radius: 2, firerId: 't1', activatedTurn: 1, expiryTurn: 20 }],
+    )
+    const view = buildWorldView(state, config, 't1', 2)
+    expect(view.visibleEnemies?.map((enemy) => enemy.id)).toEqual(['t2'])
   })
 
   it('counts alive enemies correctly', () => {

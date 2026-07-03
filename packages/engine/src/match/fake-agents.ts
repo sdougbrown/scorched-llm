@@ -1,5 +1,6 @@
-import type { WorldView } from '../types/events.js'
-import type { ToolCall } from '../types/tool.js'
+import type { ModelTrace, WorldView } from '../types/events.js'
+import type { ActionResult, ToolCall } from '../types/tool.js'
+import type { Cell } from '../types/coords.js'
 
 export interface AgentMessage {
   role: 'system' | 'user' | 'assistant' | 'tool'
@@ -12,10 +13,30 @@ export interface ToolSpec {
   parameters: Record<string, unknown>
 }
 
+export interface ToolExecutionResult {
+  result: ActionResult
+  worldview: WorldView
+  knownMap?: Cell[]
+  turnEnded: boolean
+}
+
+export type ToolExecutor = (call: ToolCall) => Promise<ToolExecutionResult>
+
+export interface AgentTurnResult {
+  toolCalls: ToolCall[]
+  modelTrace?: ModelTrace
+  /** True when the agent used the supplied executor while taking its turn. */
+  executed: boolean
+}
+
 export interface TankAgent {
   name: string
   messages: AgentMessage[]
-  takeTurn(worldview: WorldView, tools: ToolSpec[]): Promise<ToolCall[]>
+  takeTurn(
+    worldview: WorldView,
+    tools: ToolSpec[],
+    executeTool?: ToolExecutor,
+  ): Promise<ToolCall[] | AgentTurnResult>
 }
 
 export function alwaysPassAgent(name: string): TankAgent {

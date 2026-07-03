@@ -93,15 +93,19 @@ function buildOpenAIMessages(
   for (const msg of messages) {
     if (msg.role === 'tool') {
       let toolCallId: string | undefined
+      let toolContent = msg.content
       try {
         const parsed = JSON.parse(msg.content)
         toolCallId = typeof parsed.toolCallId === 'string' ? parsed.toolCallId : undefined
+        if (typeof parsed.content === 'string') {
+          toolContent = parsed.content
+        }
       } catch {
         // Not JSON, ignore
       }
       result.push({
         role: 'tool',
-        content: msg.content,
+        content: toolContent,
         tool_call_id: toolCallId,
       })
     } else if (msg.role === 'assistant' && isToolCallContent(msg.content)) {

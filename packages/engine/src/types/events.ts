@@ -13,6 +13,12 @@ export interface WorldView {
   turn: number
   isMyTurn: boolean
   aliveEnemyCount: number
+  /** Enemy tanks currently revealed by local vision or any active flare. */
+  visibleEnemies?: Array<{
+    id: string
+    position: Coordinate
+    hp: number
+  }>
 }
 
 /** Optional model execution trace attached to a turn. */

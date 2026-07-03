@@ -51,6 +51,14 @@ export function serializeWorldView(view: WorldView): string {
 
   // Enemy count
   lines.push(`Alive enemies: ${view.aliveEnemyCount}`)
+  if ((view.visibleEnemies?.length ?? 0) > 0) {
+    lines.push('Visible enemies:')
+    for (const enemy of view.visibleEnemies ?? []) {
+      lines.push(`  ${enemy.id} at (${enemy.position.x}, ${enemy.position.y}), HP: ${enemy.hp}`)
+    }
+  } else {
+    lines.push('Visible enemies: none')
+  }
 
   return lines.join('\n')
 }

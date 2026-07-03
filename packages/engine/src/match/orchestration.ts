@@ -5,6 +5,7 @@ import type { MatchLog, MatchResult, MatchCheckpoint } from '../types/log.js'
 import type { TankAgent, ToolSpec } from './fake-agents.js'
 import type { Rng } from '../rng/rng.js'
 import type { TurnConditions } from '../rules/turn-rules.js'
+import type { Cell } from '../types/coords.js'
 
 import { generateTerrain } from '../terrain/generate.js'
 import { createRng } from '../rng/rng.js'
@@ -130,34 +131,78 @@ const TOOLS: ToolSpec[] = [
   {
     name: 'move',
     description: 'Move the tank in a direction',
-    parameters: { direction: { type: 'string' }, distance: { type: 'number' } },
+    parameters: {
+      type: 'object',
+      properties: {
+        direction: { type: 'string', enum: ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'] },
+        distance: { type: 'integer', minimum: 1 },
+      },
+      required: ['direction', 'distance'],
+      additionalProperties: false,
+    },
   },
   {
     name: 'fire_flare',
     description: 'Fire a flare to reveal terrain',
-    parameters: { direction: { type: 'string' }, range: { type: 'number' } },
+    parameters: {
+      type: 'object',
+      properties: {
+        direction: { type: 'string', enum: ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'] },
+        range: { type: 'integer', minimum: 1 },
+      },
+      required: ['direction', 'range'],
+      additionalProperties: false,
+    },
   },
   {
     name: 'fire_shell',
     description: 'Fire a shell at an angle and power',
-    parameters: { angle: { type: 'number' }, power: { type: 'number' } },
+    parameters: {
+      type: 'object',
+      properties: {
+        angle: { type: 'number', minimum: 0, exclusiveMaximum: 360 },
+        power: { type: 'number', exclusiveMinimum: 0 },
+      },
+      required: ['angle', 'power'],
+      additionalProperties: false,
+    },
   },
   {
     name: 'pass',
     description: 'Pass the turn',
-    parameters: {},
+    parameters: { type: 'object', properties: {}, additionalProperties: false },
   },
   {
     name: 'look',
     description: 'Look at the current position',
-    parameters: {},
+    parameters: { type: 'object', properties: {}, additionalProperties: false },
   },
   {
     name: 'known_map',
     description: 'View known map data',
-    parameters: {},
+    parameters: { type: 'object', properties: {}, additionalProperties: false },
   },
 ]
+
+interface TankKnowledge {
+  knownCells?: Record<string, Cell>
+}
+
+function updateKnowledge(runner: MatchRunner, tankId: string, worldview: ReturnType<typeof buildWorldView>): Cell[] {
+  const memory = (runner.agentMemory[tankId] ?? {}) as TankKnowledge
+  const knownCells = memory.knownCells ?? {}
+  for (const cell of worldview.localScan) {
+    knownCells[`${cell.coord.x},${cell.coord.y}`] = cell
+  }
+  for (const visible of worldview.flaredCells) {
+    knownCells[`${visible.cell.coord.x},${visible.cell.coord.y}`] = visible.cell
+  }
+  memory.knownCells = knownCells
+  runner.agentMemory[tankId] = memory
+  return Object.values(knownCells).sort(
+    (a, b) => a.coord.y - b.coord.y || a.coord.x - b.coord.x,
+  )
+}
 
 function buildUmpireFields(toolCall: ToolCall): Record<string, unknown> {
   const fields: Record<string, unknown> = {}
@@ -425,14 +470,31 @@ export async function runMatch(
       currentTank.id,
       runner.remainingActions,
     )
+    updateKnowledge(runner, currentTank.id, worldview)
 
-    const toolCalls = await agents[runner.playerCursor].takeTurn(worldview, TOOLS)
-
-    const clampedCalls = toolCalls.slice(0, config.maxToolCallsPerTurn)
     const turnActions: ActionEvent[] = []
+    let matchTermination: MatchResult | null = null
+    let executedCallCount = 0
 
-    for (const call of clampedCalls) {
-      if (runner.remainingActions <= 0) break
+    const executeTool = async (call: ToolCall) => {
+      if (
+        executedCallCount >= config.maxToolCallsPerTurn ||
+        runner.remainingActions <= 0 ||
+        matchTermination != null
+      ) {
+        const currentWorldview = buildWorldView(
+          runner.state,
+          config,
+          currentTank.id,
+          runner.remainingActions,
+        )
+        return {
+          result: invalidResult('Turn has ended or tool call limit reached'),
+          worldview: currentWorldview,
+          turnEnded: true,
+        }
+      }
+      executedCallCount++
 
       const conditions: TurnConditions = {
         remainingActions: runner.remainingActions,
@@ -445,15 +507,25 @@ export async function runMatch(
       const isValid = isFieldEnabled(umpireFields, conditions, config)
 
       if (!isValid) {
+        const result = invalidResult('Umpire validation failed')
         turnActions.push({
           kind: 'invalid',
           call,
-          result: invalidResult('Umpire validation failed'),
+          result,
           snapshot: deepCloneGameState(runner.state),
         })
         runner.invalidStreak++
-        if (runner.invalidStreak >= 3) break
-        continue
+        const currentWorldview = buildWorldView(
+          runner.state,
+          config,
+          currentTank.id,
+          runner.remainingActions,
+        )
+        return {
+          result,
+          worldview: currentWorldview,
+          turnEnded: runner.invalidStreak >= 3,
+        }
       }
 
       const { newState, result, moveCost } = resolveAction(
@@ -480,7 +552,6 @@ export async function runMatch(
         runner.invalidStreak = 0
       } else if (isBlocked) {
         runner.invalidStreak++
-        if (runner.invalidStreak >= 3) break
       } else {
         if (kind === 'move' && result.kind === 'ok') {
           runner.remainingMoveBudget -= moveCost
@@ -489,18 +560,54 @@ export async function runMatch(
         runner.invalidStreak = 0
       }
 
-      const termination = checkTermination(runner.state, config, runner.turnCursor)
-      if (termination) {
-        log.turns.push({
-          turn: runner.turnCursor,
-          player: currentTank.id,
-          actions: turnActions,
-          worldview,
-        })
-        onTurnComplete?.(log)
-        log.result = termination
-        return { log, result: termination }
+      matchTermination = checkTermination(runner.state, config, runner.turnCursor)
+      const currentWorldview = buildWorldView(
+        runner.state,
+        config,
+        currentTank.id,
+        runner.remainingActions,
+      )
+      const knownMap = updateKnowledge(runner, currentTank.id, currentWorldview)
+      const turnEnded =
+        matchTermination != null ||
+        runner.remainingActions <= 0 ||
+        runner.invalidStreak >= 3 ||
+        executedCallCount >= config.maxToolCallsPerTurn
+
+      return {
+        result,
+        worldview: currentWorldview,
+        ...(call.tool.kind === 'known_map' ? { knownMap } : {}),
+        turnEnded,
       }
+    }
+
+    const agentResult = await agents[runner.playerCursor].takeTurn(worldview, TOOLS, executeTool)
+    const isStructuredResult = !Array.isArray(agentResult)
+    const toolCalls = isStructuredResult ? agentResult.toolCalls : agentResult
+
+    // Legacy/scripted agents return calls for the engine to execute. Model-backed
+    // agents execute incrementally through the callback above.
+    if (!isStructuredResult || !agentResult.executed) {
+      for (const call of toolCalls.slice(0, config.maxToolCallsPerTurn)) {
+        const execution = await executeTool(call)
+        if (execution.turnEnded) break
+      }
+    }
+
+    if (matchTermination != null) {
+      log.turns.push({
+        turn: runner.turnCursor,
+        player: currentTank.id,
+        actions: turnActions,
+        worldview,
+        ...(isStructuredResult && agentResult.modelTrace != null
+          ? { modelTrace: agentResult.modelTrace }
+          : {}),
+      })
+      onTurnComplete?.(log)
+      log.result = matchTermination
+      return { log, result: matchTermination }
     }
 
     log.turns.push({
@@ -508,6 +615,9 @@ export async function runMatch(
       player: currentTank.id,
       actions: turnActions,
       worldview,
+      ...(isStructuredResult && agentResult.modelTrace != null
+        ? { modelTrace: agentResult.modelTrace }
+        : {}),
     })
 
     onTurnComplete?.(log)
