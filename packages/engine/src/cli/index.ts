@@ -1,7 +1,9 @@
+import { createServer } from 'node:http'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { parseMatchConfig } from '../config/schema.js'
 import { alwaysPassAgent } from '../match/fake-agents.js'
+import type { MatchLog } from '../types/log.js'
 import { runMatch } from '../match/orchestration.js'
 import { createModel } from '../model/factory.js'
 import { ModelBackedTankAgent } from '../model/tank-agent.js'
@@ -37,6 +39,7 @@ export async function runCli(argv: string[]): Promise<void> {
   let configPath: string | undefined
   let outPath: string | undefined
   let live = false
+  let servePort: number | undefined
 
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--config' && argv[i + 1]) {
@@ -45,6 +48,8 @@ export async function runCli(argv: string[]): Promise<void> {
       outPath = resolve(argv[++i])
     } else if (argv[i] === '--live') {
       live = true
+    } else if (argv[i] === '--serve' && argv[i + 1]) {
+      servePort = parseInt(argv[++i], 10)
     }
   }
 
@@ -76,6 +81,72 @@ export async function runCli(argv: string[]): Promise<void> {
     }
     return alwaysPassAgent(p.label)
   })
+
+  if (servePort) {
+    let logRef: MatchLog | null = null
+    let status: 'running' | 'complete' = 'running'
+
+    const server = createServer((req, res) => {
+      if (req.url === '/match.json') {
+        if (!logRef) {
+          res.statusCode = 404
+          res.setHeader('Content-Type', 'application/json')
+          res.setHeader('Access-Control-Allow-Origin', '*')
+          res.end(JSON.stringify({ error: 'waiting for match to start' }))
+          return
+        }
+        res.setHeader('Content-Type', 'application/json')
+        res.setHeader('Access-Control-Allow-Origin', '*')
+        res.end(JSON.stringify(logRef))
+        return
+      }
+
+      if (req.url === '/') {
+        res.setHeader('Content-Type', 'application/json')
+        res.setHeader('Access-Control-Allow-Origin', '*')
+        res.end(
+          JSON.stringify({
+            status,
+            turns: logRef ? logRef.turns.length : 0,
+            matchId: logRef ? logRef.metadata.matchId : '',
+          }),
+        )
+        return
+      }
+
+      res.statusCode = 404
+      res.end()
+    })
+
+    server.listen(servePort, () => {
+      console.log(`Live spectate: http://localhost:${servePort}/match.json`)
+    })
+
+    const httpServer = server
+
+    const { log, result } = await runMatch(config, agents, (turnLog) => {
+      logRef = structuredClone(turnLog)
+    })
+
+    writeFileSync(outPath, JSON.stringify(log, null, 2))
+
+    status = 'complete'
+
+    console.log(`Match complete: ${result.terminationReason}`)
+    console.log(`Turns: ${log.turns.length}`)
+    for (const placement of result.placements) {
+      console.log(`  ${placement.rank}. ${placement.tankId} (HP: ${placement.hp}, DMG: ${placement.damageDealt})`)
+    }
+
+    const sigintHandler = () => {
+      httpServer.close(() => {
+        process.exit(0)
+      })
+    }
+    process.on('SIGINT', sigintHandler)
+
+    return
+  }
 
   const { log, result } = await runMatch(config, agents)
 
