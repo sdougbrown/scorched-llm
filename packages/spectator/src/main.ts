@@ -7,7 +7,9 @@ import { createMatchLoader } from './match-loader.js'
 import { createControls } from './controls.js'
 import { createTracePanel } from './trace-panel.js'
 import { updateStatsOverlay } from './stats-overlay.js'
+import { LiveWatcher } from './live-watcher.js'
 import type { MatchLog } from '@scorched-llm/engine'
+import { loadMatchLog } from './log-loader.js'
 
 const stateRef: { current: AppState | null } = { current: null }
 
@@ -163,6 +165,48 @@ html, body {
   border-radius: 8px;
   max-width: 500px;
 }
+
+.app__header__live {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #888;
+}
+
+.app__header__live--hidden {
+  display: none;
+}
+
+.app__live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e74c3c;
+  display: inline-block;
+}
+
+.app__live-dot--connecting {
+  background: #f39c12;
+}
+
+.app__live-dot--complete {
+  background: #2ecc71;
+}
+
+.app__live-text {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.app__live-text--connecting {
+  color: #f39c12;
+}
+
+.app__live-text--complete {
+  color: #2ecc71;
+}
 `
 
 let stylesheetInjected = false
@@ -187,6 +231,10 @@ interface AppState {
   errorEl: HTMLElement | null
   posIndex: number
   resizeHandler: (() => void) | null
+  liveBadgeEl: HTMLElement | null
+  liveStopBtn: HTMLButtonElement | null
+  watcher: LiveWatcher | null
+  buildCtx: BuildContext | null
 }
 
 function buildApp(): AppState {
@@ -212,6 +260,10 @@ function buildApp(): AppState {
     errorEl: null,
     posIndex: 0,
     resizeHandler: null,
+    liveBadgeEl: null,
+    liveStopBtn: null,
+    watcher: null,
+    buildCtx: null,
   }
 
   // Header
@@ -239,6 +291,34 @@ function buildApp(): AppState {
 
   header.append(titleEl, infoEl, spacer, statsToggleBtn)
   root.appendChild(header)
+
+  // Live badge + stop button (hidden by default)
+  const liveBadgeEl = document.createElement('span')
+  liveBadgeEl.className = 'app__header__live app__header__live--hidden'
+
+  const liveDot = document.createElement('span')
+  liveDot.className = 'app__live-dot'
+
+  const liveText = document.createElement('span')
+  liveText.className = 'app__live-text app__live-text--connecting'
+  liveText.textContent = 'CONNECTING'
+
+  liveBadgeEl.appendChild(liveDot)
+  liveBadgeEl.appendChild(liveText)
+
+  const liveStopBtn = document.createElement('button')
+  liveStopBtn.className = 'app__btn'
+  liveStopBtn.textContent = 'Stop'
+
+  const liveControlsContainer = document.createElement('div')
+  liveControlsContainer.className = 'app__header__live app__header__live--hidden'
+  liveControlsContainer.style.alignItems = 'center'
+  liveControlsContainer.style.gap = '6px'
+  liveControlsContainer.appendChild(liveBadgeEl)
+  liveControlsContainer.setAttribute('hidden', '')
+  liveControlsContainer.appendChild(liveStopBtn)
+
+  header.insertBefore(liveControlsContainer, spacer)
 
   // Arena container
   const arenaContainer = document.createElement('div')
@@ -292,6 +372,19 @@ function buildApp(): AppState {
     })
   })
   loaderEl.appendChild(matchLoader)
+
+  state.liveBadgeEl = liveBadgeEl
+  state.liveStopBtn = liveStopBtn
+
+  liveStopBtn.addEventListener('click', (): void => {
+    stopLiveWatch(state, {
+      arenaContainer,
+      canvas,
+      tracesEl,
+      controlsPlaceholder,
+      headerInfo: infoEl,
+    })
+  })
 
   return state
 }
@@ -368,6 +461,76 @@ function onLoadMatch(
   }
 
   state.log = log
+}
+
+function startLiveWatch(state: AppState, url: string, ctx: BuildContext): void {
+  const watcher = new LiveWatcher(
+    url,
+    (log: MatchLog) => {
+      const oldLog = state.log
+
+      if (!oldLog) {
+        onLoadMatch(state, log, ctx)
+        return
+      }
+
+      const oldEndIndex = oldLog.turns.length - 1
+      const atEndOfTimeline = state.posIndex >= oldEndIndex
+
+      onLoadMatch(state, log, ctx)
+
+      if (atEndOfTimeline) {
+        const newPosIndex = log.turns.length - 1
+        const pos = state.timeline!.seek(newPosIndex)
+        state.renderer!.render(pos.state, log.config, { showFog: true, showTrajectories: false, animate: true })
+        state.posIndex = newPosIndex
+      } else {
+        const pos = state.timeline!.seek(state.posIndex)
+        state.renderer!.render(pos.state, log.config, { showFog: true, showTrajectories: false, animate: true })
+      }
+
+      ctx.headerInfo.textContent = `${log.metadata.matchId} — ${log.turns.length} turns`
+    },
+    () => {
+      const liveDot = state.liveBadgeEl!.querySelector('.app__live-dot')
+      if (liveDot) {
+        liveDot.className = 'app__live-dot app__live-dot--complete'
+      }
+      const liveText = state.liveBadgeEl!.querySelector('.app__live-text')
+      if (liveText) {
+        liveText.className = 'app__live-text app__live-text--complete'
+        liveText.textContent = 'COMPLETE'
+      }
+      state.watcher!.stop()
+    },
+  )
+
+  watcher.start()
+  state.watcher = watcher
+
+  state.liveBadgeEl!.classList.remove('app__header__live--hidden')
+  state.liveStopBtn!.removeAttribute('hidden')
+
+  state.loaderEl!.innerHTML = '<div class="app__loader__text">Connecting to live stream...</div>'
+  state.loaderEl!.classList.remove('app__loader--hidden')
+}
+
+function stopLiveWatch(state: AppState, ctx: BuildContext): void {
+  if (state.watcher) {
+    state.watcher.stop()
+    state.watcher = null
+  }
+
+  state.liveBadgeEl!.classList.add('app__header__live--hidden')
+  state.liveStopBtn!.setAttribute('hidden', '')
+
+  state.loaderEl!.innerHTML = ''
+  state.loaderEl!.classList.add('app__loader--hidden')
+
+  const matchLoader = createMatchLoader((log: MatchLog): void => {
+    onLoadMatch(state, log, ctx)
+  })
+  state.loaderEl!.appendChild(matchLoader)
 }
 
 function setupKeyboard(): void {
@@ -475,6 +638,19 @@ function setupKeyboard(): void {
 export function initApp(): AppState {
   const appState = buildApp()
   stateRef.current = appState
+
+  const params = new URLSearchParams(window.location.search)
+  const url = params.get('url')
+  if (url) {
+    startLiveWatch(appState, url, {
+      arenaContainer: (appState.loaderEl!.parentElement as HTMLElement).querySelector('.app__arena-container') as HTMLDivElement,
+      canvas: (appState.loaderEl!.parentElement as HTMLElement).querySelector('canvas') as HTMLCanvasElement,
+      tracesEl: (appState.loaderEl!.parentElement as HTMLElement).querySelector('.app__traces') as HTMLDivElement,
+      controlsPlaceholder: appState.controlsEl as HTMLDivElement,
+      headerInfo: appState.loaderEl!.closest('.app__header')!.querySelector('.app__header__info') as HTMLSpanElement,
+    })
+  }
+
   setupKeyboard()
   return appState
 }
