@@ -105,9 +105,9 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('known_map')
   })
 
-  it('contains strategy tips', () => {
+  it('contains win condition and notes', () => {
     const prompt = buildSystemPrompt(makeConfig(), 'Alpha')
-    expect(prompt).toContain('flares')
+    expect(prompt).toContain('Passing or scanning without ever firing cannot win')
     expect(prompt).toContain('enemy')
     expect(prompt).toContain('flare expiry')
   })
