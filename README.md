@@ -25,7 +25,7 @@ On each turn, a tank agent receives the current worldview (its position, HP, loc
 
 ### Prerequisites
 
-- Node 22+, pnpm 9+
+- Node 22+, Yarn 4 (Berry)
 - API keys for any model players (set as environment variables)
 
 ### Install
@@ -33,14 +33,14 @@ On each turn, a tank agent receives the current worldview (its position, HP, loc
 ```bash
 git clone <repo-url> scorched-llm
 cd scorched-llm
-pnpm install
-pnpm build
+yarn install
+yarn build
 ```
 
 ### Run a scripted exhibition (no API keys)
 
 ```bash
-pnpm --filter @scorched-llm/engine exec tsx src/cli/index.ts exhibition \
+yarn workspace @scorched-llm/engine exec tsx src/cli/index.ts exhibition \
   --preset duel \
   --out ./exhibitions/duel-scripted
 ```
@@ -55,7 +55,7 @@ This runs Aggressive Bot vs Conservative Bot across 5 seeds with seat swaps. Out
 Open any match log in the spectator to watch it:
 
 ```bash
-pnpm --filter @scorched-llm/spectator dev
+yarn workspace @scorched-llm/spectator dev
 ```
 
 Then drag-drop a `match-*.json` file onto the browser.
@@ -67,7 +67,7 @@ For model-backed matches that take minutes, watch the match as it runs — no ne
 **Terminal 1** — run the match with `--serve <port>`:
 
 ```bash
-pnpm --filter @scorched-llm/engine exec tsx src/cli/index.ts \
+yarn workspace @scorched-llm/engine exec tsx src/cli/index.ts \
   --config my-match.local.json \
   --out result.json \
   --live \
@@ -79,7 +79,7 @@ The CLI prints `Live spectate: http://localhost:3000/match.json` and starts serv
 **Terminal 2** — open the spectator and auto-connect:
 
 ```bash
-pnpm --filter @scorched-llm/spectator dev
+yarn workspace @scorched-llm/spectator dev
 ```
 
 Open `http://localhost:5173/?url=http://localhost:3000/match.json`
@@ -130,7 +130,7 @@ cp examples/roster-duel.example.json roster-myorg.local.json
 export OPENAI_API_KEY=sk-...
 export ANTHROPIC_API_KEY=sk-ant-...
 
-pnpm --filter @scorched-llm/engine exec tsx src/cli/index.ts batch \
+yarn workspace @scorched-llm/engine exec tsx src/cli/index.ts batch \
   --roster roster-myorg.local.json \
   --preset duel \
   --out ./exhibitions/duel-models \
@@ -140,7 +140,7 @@ pnpm --filter @scorched-llm/engine exec tsx src/cli/index.ts batch \
 4. Aggregate results:
 
 ```bash
-pnpm --filter @scorched-llm/engine exec tsx src/cli/index.ts aggregate \
+yarn workspace @scorched-llm/engine exec tsx src/cli/index.ts aggregate \
   --out ./exhibitions/duel-models
 ```
 
@@ -219,7 +219,7 @@ Any OpenAI-compatible `/chat/completions` endpoint works with no extra config:
 For full control, write a complete `MatchConfig` JSON and run a single match:
 
 ```bash
-pnpm --filter @scorched-llm/engine exec tsx src/cli/index.ts \
+yarn workspace @scorched-llm/engine exec tsx src/cli/index.ts \
   --config my-match.local.json \
   --out match.json \
   --live
@@ -235,7 +235,7 @@ The batch runner round-robins a roster over a committed seed suite with paired s
 - **Survival:** every 4-player combination × each seed (seating rotates across seeds)
 
 ```bash
-pnpm --filter @scorched-llm/engine exec tsx src/cli/index.ts batch \
+yarn workspace @scorched-llm/engine exec tsx src/cli/index.ts batch \
   --roster <roster.json> \
   --preset <duel|blitz|survival> \
   --out <output-dir> \
@@ -263,7 +263,7 @@ The schedule is deterministic — same roster + preset + seeds always produces t
 After a batch run, aggregate the results:
 
 ```bash
-pnpm --filter @scorched-llm/engine exec tsx src/cli/index.ts aggregate --out <output-dir>
+yarn workspace @scorched-llm/engine exec tsx src/cli/index.ts aggregate --out <output-dir>
 ```
 
 Produces `summary.json` with per-player stats:
@@ -286,7 +286,7 @@ Raw metrics are preserved. There is no composite score — evaluate models on th
 ## Spectator
 
 ```bash
-pnpm --filter @scorched-llm/spectator dev
+yarn workspace @scorched-llm/spectator dev
 ```
 
 Open the browser, drag-drop any `match-*.json` file. Features:
@@ -327,11 +327,11 @@ scorched-llm/
 ## Development
 
 ```bash
-pn install                  # install deps
-pnpm build                  # build all packages (project references)
-pnpm test                   # run all tests (vitest via turbo)
-pnpm lint                   # eslint
-pnpm typecheck              # tsc --noEmit
+yarn install              # install deps
+yarn build                # build all packages (project references)
+yarn test                 # run all tests (vitest via turbo)
+yarn lint                 # eslint
+yarn typecheck            # tsc --noEmit
 ```
 
 All four gates run in CI. The engine has 376+ tests; the spectator has 98.
