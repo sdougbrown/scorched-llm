@@ -200,6 +200,34 @@ describe('LiveWatcher — polling behavior', () => {
     expect(watcher.isComplete).toBe(true)
     expect(watcher.status).toBe('complete')
   })
+
+  it('continues polling across terminal matches in a live batch', async () => {
+    const onUpdate = vi.fn()
+    const onComplete = vi.fn()
+    const firstMatch = makeValidLog({
+      metadata: { matchId: '1', createdAt: '2024-01-01', promptVersion: 'v1', adapterVersions: {} },
+      result: { terminationReason: 'last-standing', placements: [] },
+      liveBatchState: { currentMatch: 1, totalMatches: 2, status: 'running' },
+    })
+    const secondMatch = makeValidLog({
+      metadata: { matchId: '2', createdAt: '2024-01-01', promptVersion: 'v1', adapterVersions: {} },
+      result: { terminationReason: 'turn-limit', placements: [] },
+      liveBatchState: { currentMatch: 2, totalMatches: 2, status: 'running' },
+    })
+
+    fetchMock
+      .mockResolvedValueOnce({ ok: true, text: () => Promise.resolve(JSON.stringify(firstMatch)) })
+      .mockResolvedValueOnce({ ok: true, text: () => Promise.resolve(JSON.stringify(secondMatch)) })
+
+    const watcher = new LiveWatcher('/api/match', onUpdate, onComplete)
+    watcher.start()
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL)
+
+    expect(onUpdate).toHaveBeenCalledTimes(2)
+    expect(onUpdate.mock.calls[1][0].metadata.matchId).toBe('2')
+    expect(onComplete).not.toHaveBeenCalled()
+    expect(watcher.status).toBe('polling')
+  })
 })
 
 describe('LiveWatcher — error handling', () => {

@@ -15,7 +15,9 @@ describe('PRESET_NAMES', () => {
 
 describe('SEED_SUITE', () => {
   it('contains the expected seed values', () => {
-    expect(SEED_SUITE).toEqual([42, 7, 99, 123, 256])
+    expect(SEED_SUITE).toHaveLength(20)
+    expect(SEED_SUITE.slice(0, 5)).toEqual([42, 7, 99, 123, 256])
+    expect(new Set(SEED_SUITE).size).toBe(SEED_SUITE.length)
   })
 })
 

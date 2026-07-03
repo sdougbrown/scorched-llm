@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync, readdirSync } from 'node:fs'
 import { resolve, join } from 'node:path'
 import { type PlayerSpec } from '../config/schema.js'
-import { PRESETS, SEED_SUITE, type PresetName } from '../config/presets.js'
+import { DEFAULT_SEED_COUNT, PRESETS, SEED_SUITE, type PresetName } from '../config/presets.js'
 import { VERSION } from '../index.js'
 import { createAggressiveAgent, createConservativeAgent } from '../match/scripted-agents.js'
 import { runMatch } from '../match/orchestration.js'
@@ -153,7 +153,7 @@ export async function runExhibition(argv: string[]): Promise<void> {
     process.exit(1)
   }
 
-  const seeds: number[] = seedsCount !== undefined ? SEED_SUITE.slice(0, seedsCount) : [...SEED_SUITE]
+  const seeds: number[] = SEED_SUITE.slice(0, seedsCount ?? DEFAULT_SEED_COUNT)
   const schedule = buildSchedule(preset, seeds, players)
 
   const total = schedule.length

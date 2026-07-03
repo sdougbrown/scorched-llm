@@ -33,6 +33,11 @@ export interface MatchLog {
     turn: number
     player: string
   }
+  liveBatchState?: {
+    currentMatch: number
+    totalMatches: number
+    status: 'running' | 'complete'
+  }
 }
 
 /** Checkpoint state — serializable, for resume/replay. */

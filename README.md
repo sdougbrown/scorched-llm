@@ -66,9 +66,9 @@ Then drag-drop a `match-*.json` file onto the browser.
 
 ### Watch a match live (live spectate)
 
-For model-backed matches that take minutes, watch the match as it runs — no need to wait for completion. Works headless / remote — the engine server binds to `0.0.0.0` so it's reachable from other machines on your network (e.g. a Tailscale tailnet).
-
-**Terminal 1** — run the match with `--serve <port>`:
+For model-backed matches that take minutes, watch the match as it runs without
+starting a separate web server. `--serve` builds and hosts the spectator
+alongside the live match data on one origin:
 
 ```bash
 yarn match \
@@ -78,23 +78,32 @@ yarn match \
   --serve 3030
 ```
 
-The CLI prints `Live spectate: http://0.0.0.0:3030/match.json` and starts serving the match log after each turn completes.
+Open the URL printed by the CLI:
 
-**Terminal 2** — start the spectator (add `--host 0.0.0.0` if running headless/remote):
+```
+http://localhost:3030/
+```
+
+The server binds to `0.0.0.0`, so replace `localhost` with the host's network
+name or IP when viewing remotely. The UI and `/match.json` share an origin;
+there is no Vite runtime, cross-origin URL, or CORS setup. `/status.json`
+provides machine-readable run status.
+
+The spectator polls every 1.5s, auto-advances as turns arrive, and shows a
+**LIVE** badge. Batch runs continue across match boundaries and stop polling
+only after the full batch completes.
+
+### Browse a replay directory
+
+Point the runner at any directory containing `match-*.json` logs:
 
 ```bash
-yarn workspace @scorched-llm/spectator exec vite --host 0.0.0.0
+yarn match replay --dir exhibitions/survival-20
 ```
 
-Open from any machine on your network:
-
-```
-http://<host-ip>:5173/#url=http://<host-ip>:3030/match.json
-```
-
-The spectator polls every 1.5s, auto-advances the timeline as new turns arrive, and shows a **LIVE** badge. When the match completes, it shows **FINAL** and stops polling.
-
-You can also paste a URL directly into the "Watch URL" input in the spectator UI instead of using the query param.
+Open `http://localhost:3030/` to choose a replay. Use `--serve <port>` to
+override port `3030`. The runner ignores non-match JSON files such as
+`summary.json` and serves each selected log through the bundled spectator.
 
 ### Run a model matchup
 
@@ -255,11 +264,25 @@ yarn match batch \
   --preset <duel|blitz|survival> \
   --out <output-dir> \
   [--seeds <count>] \
-  [--live]
+  [--live] \
+  [--serve <port>]
 ```
 
-- `--seeds <count>` — use the first N seeds from the committed suite (default all 5)
+- `--seeds <count>` — use the first N seeds from the 20-seed committed suite (default 5)
 - `--live` — use real model agents. Without it, model players use always-pass (deterministic dry-run, no API calls)
+- `--serve <port>` — continuously serve the active match at `/match.json`.
+  The spectator follows match boundaries and stops only when the full batch is
+  complete.
+
+To start a 20-match live survival batch for any four-model roster:
+
+```bash
+./scripts/run-survival-eval.sh roster-survival.local.json
+```
+
+The script writes to `exhibitions/survival-20` and serves the live feed on port
+`3030`. Pass a second positional argument to change the output directory, or
+set `PORT` to change the port.
 
 ### Match count
 
@@ -268,6 +291,7 @@ yarn match batch \
 | duel/blitz | 3 | 5 | C(3,2) × 5 × 2 = **30** |
 | duel/blitz | 6 | 5 | C(6,2) × 5 × 2 = **150** |
 | duel/blitz | 8 | 5 | C(8,2) × 5 × 2 = **280** |
+| survival | 4 | 20 | C(4,4) × 20 = **20** |
 | survival | 6 | 5 | C(6,4) × 5 = **75** |
 | survival | 8 | 5 | C(8,4) × 5 = **350** |
 
@@ -335,7 +359,7 @@ The spectator is omniscient — it shows all terrain and tank positions. Fog-of-
 ```
 scorched-llm/
 ├── packages/
-│   ├── engine/              # Pure game engine, CLI, batch runner, presets
+│   ├── engine/              # Pure headless engine, batch runner, presets
 │   │   ├── src/
 │   │   │   ├── config/      # MatchConfig schema, presets, seed suite
 │   │   │   ├── cli/         # CLI, batch runner, exhibition, aggregation
@@ -348,7 +372,8 @@ scorched-llm/
 │   │   ├── RENDERER_CONTRACT.md    # 3D-ready replay contract docs
 │   │   └── BENCHMARK_METHODOLOGY.md
 │   ├── adapters/            # Thin adapter stub
-│   └── spectator/           # Vite web app, Canvas arena, DOM controls
+│   ├── spectator/           # Vite web app, Canvas arena, DOM controls
+│   └── runner/              # Public CLI, bundled spectator, live/replay server
 ├── examples/
 │   ├── roster-duel.example.json     # 5-player duel roster (dummy URLs)
 │   └── roster-survival.example.json # 7-player survival roster

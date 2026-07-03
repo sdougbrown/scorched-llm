@@ -1,13 +1,14 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { type PlayerSpec } from '../config/schema.js'
-import { PRESETS, SEED_SUITE, type PresetName } from '../config/presets.js'
+import { DEFAULT_SEED_COUNT, PRESETS, SEED_SUITE, type PresetName } from '../config/presets.js'
 import { alwaysPassAgent } from '../match/fake-agents.js'
 import { createAggressiveAgent, createConservativeAgent } from '../match/scripted-agents.js'
 import { runMatch } from '../match/orchestration.js'
 import { createModel } from '../model/factory.js'
 import { ModelBackedTankAgent } from '../model/tank-agent.js'
 import { buildSystemPrompt } from '../model/system-prompt.js'
+import type { CliRunHooks } from './hooks.js'
 
 interface RosterPlayer {
   label: string
@@ -100,7 +101,7 @@ function buildSeatAssignment(players: RosterPlayer[]): Record<number, string> {
   return sa
 }
 
-export async function runBatch(argv: string[]): Promise<void> {
+export async function runBatch(argv: string[], hooks: CliRunHooks = {}): Promise<void> {
   let rosterPath: string | undefined
   let presetName: string | undefined
   let outDir: string | undefined
@@ -150,15 +151,20 @@ export async function runBatch(argv: string[]): Promise<void> {
     process.exit(1)
   }
 
-  const seeds = seedsCount !== undefined ? SEED_SUITE.slice(0, seedsCount) : SEED_SUITE
+  const seeds = SEED_SUITE.slice(0, seedsCount ?? DEFAULT_SEED_COUNT)
 
   const schedule: ScheduledMatch[] = []
 
   if (preset === 'survival') {
     const combos = getCombinations(players, 4)
     for (const combo of combos) {
-      for (const seed of seeds) {
-        schedule.push({ preset, seed, players: combo })
+      for (let seedIndex = 0; seedIndex < seeds.length; seedIndex++) {
+        const seatOffset = seedIndex % combo.length
+        const rotatedPlayers = [
+          ...combo.slice(seatOffset),
+          ...combo.slice(0, seatOffset),
+        ]
+        schedule.push({ preset, seed: seeds[seedIndex], players: rotatedPlayers })
       }
     }
   } else {
@@ -207,7 +213,13 @@ export async function runBatch(argv: string[]): Promise<void> {
     console.log(`Running match ${matchId}/${total}: ${preset} seed ${entry.seed} (seat: ${progressLabels})`)
 
     try {
-      const { log, result } = await runMatch(config, agents)
+      const { log, result } = await runMatch(config, agents, hooks.onLiveLog
+        ? (turnLog) => {
+            const liveLog = structuredClone(turnLog)
+            liveLog.metadata.matchId = String(matchId)
+            hooks.onLiveLog!(liveLog, { currentMatch: matchId, totalMatches: total })
+          }
+        : undefined)
       log.metadata.matchId = String(matchId)
 
       const matchLogPath = `${outDir}/match-${String(matchId).padStart(3, '0')}.json`

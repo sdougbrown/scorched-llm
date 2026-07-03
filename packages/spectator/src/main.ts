@@ -579,6 +579,9 @@ function startLiveWatch(state: AppState, url: string, ctx: BuildContext): void {
   const updateLiveActivity = (log: MatchLog): void => {
     const liveText = state.liveBadgeEl!.querySelector('.app__live-text')
     if (!liveText) return
+    const batchPrefix = log.liveBatchState
+      ? `MATCH ${log.liveBatchState.currentMatch}/${log.liveBatchState.totalMatches} · `
+      : ''
     if (log.liveState?.status === 'thinking') {
       const tankIndex = log.initialState.tanks.findIndex(
         (tank) => tank.id === log.liveState?.player,
@@ -586,9 +589,9 @@ function startLiveWatch(state: AppState, url: string, ctx: BuildContext): void {
       const label = tankIndex >= 0
         ? log.config.players[tankIndex]?.label ?? log.liveState.player
         : log.liveState.player
-      liveText.textContent = `TURN ${log.liveState.turn}: ${label} THINKING`
+      liveText.textContent = `${batchPrefix}TURN ${log.liveState.turn}: ${label} THINKING`
     } else {
-      liveText.textContent = 'LIVE'
+      liveText.textContent = `${batchPrefix}LIVE`
     }
     liveText.className = 'app__live-text'
   }
@@ -604,7 +607,10 @@ function startLiveWatch(state: AppState, url: string, ctx: BuildContext): void {
         return
       }
 
-      if (log.turns.length === oldLog.turns.length) {
+      if (
+        log.metadata.matchId === oldLog.metadata.matchId &&
+        log.turns.length === oldLog.turns.length
+      ) {
         state.log = log
         updateWinnerOverlay(
           ctx.arenaContainer,
@@ -778,7 +784,10 @@ export function initApp(): AppState {
 
   const hash = window.location.hash.slice(1)
   const hashParams = new URLSearchParams(hash)
-  const url = hashParams.get('url')
+  const embeddedUrl = document.querySelector<HTMLMetaElement>(
+    'meta[name="scorched-live-url"]',
+  )?.content
+  const url = hashParams.get('url') ?? embeddedUrl
   if (url) {
     startLiveWatch(appState, url, {
       arenaContainer: (appState.loaderEl!.parentElement as HTMLElement).querySelector('.app__arena-container') as HTMLDivElement,

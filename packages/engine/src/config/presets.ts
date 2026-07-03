@@ -3,7 +3,14 @@ import { type MatchConfig, type PlayerSpec, parseMatchConfig } from './schema.js
 export const PRESET_NAMES = ['duel', 'blitz', 'survival'] as const
 export type PresetName = typeof PRESET_NAMES[number]
 
-export const SEED_SUITE = [42, 7, 99, 123, 256] as const
+export const DEFAULT_SEED_COUNT = 5
+
+export const SEED_SUITE = [
+  42, 7, 99, 123, 256,
+  314, 2718, 1618, 2024, 8675309,
+  73, 404, 808, 1337, 9001,
+  65537, 104729, 524287, 999983, 2147483647,
+] as const
 
 const commonFields: Partial<MatchConfig> = {
   rulesVersion: 'v1',
@@ -46,6 +53,7 @@ export const PRESETS: Record<string, (seed: number, players: PlayerSpec[]) => Ma
       fog: { localRadius: 3, flareRadius: 3, flareDuration: 'one-round-global' },
       actionEconomy: 'double',
       maxToolCallsPerTurn: 5,
+      perTurnTimeoutMs: 180000,
       spawnStrategy: 'symmetric',
       shell: { maxRange: 12, apexHeight: 5, tankHeight: 1 },
       turnLimit: 80,

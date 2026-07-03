@@ -92,7 +92,7 @@ describe('runExhibition', () => {
     expect(info.engineVersion).toBeDefined()
     expect(info.timestamp).toBeDefined()
     expect(Array.isArray(info.seedSuite)).toBe(true)
-    expect(info.seedSuite.length).toBe(5)
+    expect(info.seedSuite.length).toBe(20)
     expect(Array.isArray(info.seedsUsed)).toBe(true)
     expect(info.seedsUsed.length).toBe(2)
     expect(Array.isArray(info.roster)).toBe(true)

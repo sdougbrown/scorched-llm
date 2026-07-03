@@ -1,43 +1,42 @@
 {
-  "name": "@scorched-llm/engine",
+  "name": "@scorched-llm/runner",
   "version": "0.0.0",
   "license": "MIT",
   "type": "module",
+  "bin": {
+    "scorched-llm": "./bin/runner-cli.js"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    },
-    "./cli": {
-      "types": "./dist/cli/index.d.ts",
-      "import": "./dist/cli/index.js"
     }
   },
-  "bin": "./bin/engine-cli.js",
+  "files": [
+    "bin",
+    "dist"
+  ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node scripts/copy-spectator.js",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "eslint ."
   },
   "dependencies": {
-    "@umpire/core": "^1.1.0",
-    "@umpire/zod": "^1.1.0"
-  },
-  "peerDependencies": {
-    "zod": "^3.0.0 || ^4.0.0"
+    "@scorched-llm/engine": "workspace:^"
   },
   "devDependencies": {
+    "@scorched-llm/spectator": "workspace:^",
+    "@types/node": "^22.0.0",
     "typescript": "^5.8.0",
-    "vitest": "^3.0.0",
-    "zod": "^3.23.8"
+    "vitest": "^3.0.0"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/scorched-llm/scorched-llm.git",
-    "directory": "packages/engine"
+    "directory": "packages/runner"
   },
   "publishConfig": {
     "access": "public"

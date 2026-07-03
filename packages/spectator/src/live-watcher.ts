@@ -11,6 +11,7 @@ export class LiveWatcher {
   private onComplete: () => void
   private timerId: ReturnType<typeof setTimeout> | null
   private currentTurns: number
+  private currentMatchId: string
   private currentLiveState: string
   private _isComplete: boolean
   private _status: 'disconnected' | 'connecting' | 'polling' | 'complete'
@@ -27,6 +28,7 @@ export class LiveWatcher {
     this.timerId = null
     // The first valid payload must render even when no turn has completed yet.
     this.currentTurns = -1
+    this.currentMatchId = ''
     this.currentLiveState = ''
     this._isComplete = false
     this._status = 'disconnected'
@@ -92,13 +94,15 @@ export class LiveWatcher {
       }
 
       const newTurnCount = log.turns.length
+      const matchChanged = log.metadata.matchId !== this.currentMatchId
       const newLiveState = log.liveState == null
         ? ''
         : `${log.liveState.status}:${log.liveState.turn}:${log.liveState.player}`
 
-      if (newTurnCount > this.currentTurns || newLiveState !== this.currentLiveState) {
+      if (matchChanged || newTurnCount > this.currentTurns || newLiveState !== this.currentLiveState) {
         this.onUpdate(log)
         this.currentTurns = newTurnCount
+        this.currentMatchId = log.metadata.matchId
         this.currentLiveState = newLiveState
         this.consecutiveNoChange = 0
       } else {
@@ -108,9 +112,13 @@ export class LiveWatcher {
       const terminationReason = log.result.terminationReason
       const isTerminated =
         terminationReason === 'last-standing' ||
-        terminationReason === 'mutual-destruction'
+        terminationReason === 'mutual-destruction' ||
+        (terminationReason === 'turn-limit' && log.result.placements.length > 0)
 
-      if (isTerminated) {
+      const batchComplete =
+        log.liveBatchState == null || log.liveBatchState.status === 'complete'
+
+      if (isTerminated && batchComplete) {
         this._isComplete = true
         this._status = 'complete'
         this.onComplete()

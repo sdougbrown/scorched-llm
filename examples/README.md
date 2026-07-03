@@ -20,16 +20,10 @@ yarn match \
 Edit both model blocks before running. The second block expects an
 OpenAI-compatible local server on `http://localhost:8080/v1`.
 
-In another terminal, start the spectator:
-
-```bash
-yarn workspace @scorched-llm/spectator exec vite --host 0.0.0.0
-```
-
-Then open:
+Open the single-origin spectator URL printed by the runner:
 
 ```text
-http://localhost:5173/#url=http://localhost:3030/match.json
+http://localhost:3030/
 ```
 
 ## Run four-model survival
@@ -77,13 +71,21 @@ yarn match batch \
   --preset duel \
   --seeds 2 \
   --out exhibitions/my-batch \
-  --live
+  --live \
+  --serve 3030
 
 yarn match aggregate --out exhibitions/my-batch
 ```
 
 Use `roster-survival.example.json` with `--preset survival` for four-player
-combinations.
+combinations. While the batch runs, open `http://localhost:3030/`; the bundled
+spectator follows each match automatically.
+
+Afterward, browse the saved matches without rerunning the evaluation:
+
+```bash
+yarn match replay --dir exhibitions/my-batch
+```
 
 ## Test configuration without calling models
 

@@ -57,11 +57,11 @@ describe('createTracePanel', () => {
       model: {
         name: 'Qwen3.6-27B',
         model: 'qwen',
-        baseURL: 'http://sparky:4000/v1',
+        baseURL: 'http://model-host.example:4000/v1',
       },
     })
     expect(panel.querySelector('.trace-panel__title')?.firstChild?.textContent).toBe('Qwen3.6-27B')
-    expect(panel.querySelector('.trace-panel__identity')?.textContent).toBe('tank-0 · qwen · sparky:4000')
+    expect(panel.querySelector('.trace-panel__identity')?.textContent).toBe('tank-0 · qwen · model-host.example:4000')
   })
 
   it('shows the same color used by the arena tank', () => {

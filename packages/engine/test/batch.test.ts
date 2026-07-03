@@ -124,6 +124,30 @@ describe('runBatch', () => {
     expect(manifest[3].seatAssignment['1']).toBe('playerA')
   })
 
+  it('rotates survival seats across seeds', async () => {
+    const rosterPath = join(tmpDir, 'roster.json')
+    const outDir = join(tmpDir, 'output')
+
+    writeFileSync(rosterPath, createRoster([
+      { label: 'p1', scripted: 'aggressive' as const },
+      { label: 'p2', scripted: 'conservative' as const },
+      { label: 'p3', scripted: 'aggressive' as const },
+      { label: 'p4', scripted: 'conservative' as const },
+    ]))
+
+    await runBatch([
+      '--roster', rosterPath,
+      '--preset', 'survival',
+      '--out', outDir,
+      '--seeds', '4',
+    ])
+
+    const manifest = JSON.parse(readFileSync(join(outDir, 'batch-manifest.json'), 'utf-8'))
+    expect(manifest).toHaveLength(4)
+    expect(manifest.map((entry: { seatAssignment: Record<number, string> }) =>
+      entry.seatAssignment['0'])).toEqual(['p1', 'p2', 'p3', 'p4'])
+  })
+
   it('seat assignment reflects roster label in each seat', async () => {
     const rosterPath = join(tmpDir, 'roster.json')
     const outDir = join(tmpDir, 'output')
