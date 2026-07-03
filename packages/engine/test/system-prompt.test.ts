@@ -81,6 +81,9 @@ describe('buildSystemPrompt', () => {
     const prompt = buildSystemPrompt(makeConfig(), 'Alpha')
     expect(prompt).toContain('fire_flare')
     expect(prompt).toContain('range')
+    expect(prompt).toContain('separate from the reveal radius')
+    expect(prompt).toContain('your own cell is inside the flare')
+    expect(prompt).toContain('revealed to every opponent')
   })
 
   it('contains fire_shell tool description', () => {

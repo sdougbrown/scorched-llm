@@ -80,6 +80,14 @@ describe('parseMatchConfig', () => {
     expect(config.moveMax).toBe(12)
   })
 
+  it('accepts symmetric spawn strategy', () => {
+    const config = parseMatchConfig({
+      ...validRaw,
+      spawnStrategy: 'symmetric',
+    })
+    expect(config.spawnStrategy).toBe('symmetric')
+  })
+
   it('rejects config with fewer than 2 players', () => {
     expect(() =>
       parseMatchConfig({

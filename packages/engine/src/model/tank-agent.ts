@@ -131,9 +131,10 @@ export class ModelBackedTankAgent implements TankAgent {
     const allToolCalls: ToolCall[] = []
     let finishReason = ''
     let callCount = 0
-    let attemptedCallCount = 0
+    let queryCount = 0
     const responses: NormalizedModelResponse[] = []
     let turnEnded = false
+    let responseHadToolCalls = false
 
     do {
       // 2a. Query the model with full history
@@ -142,8 +143,9 @@ export class ModelBackedTankAgent implements TankAgent {
         tools,
       }
       const response = await this.model.query(request)
+      queryCount++
       responses.push(response)
-      attemptedCallCount += response.toolCalls.length
+      responseHadToolCalls = response.toolCalls.length > 0
       finishReason = response.finishReason
 
       // 2b. Parse tool calls
@@ -216,7 +218,7 @@ export class ModelBackedTankAgent implements TankAgent {
                 turnEnded:
                   turnEnded ||
                   callCount >= this.maxToolCallsPerTurn ||
-                  attemptedCallCount >= this.maxToolCallsPerTurn,
+                  queryCount >= this.maxToolCallsPerTurn,
               }),
             }),
           })
@@ -224,8 +226,9 @@ export class ModelBackedTankAgent implements TankAgent {
       }
     } while (
       !turnEnded &&
-      finishReason === 'tool_calls' &&
-      attemptedCallCount < this.maxToolCallsPerTurn
+      (finishReason === 'tool_calls' || (executeTool != null && responseHadToolCalls)) &&
+      callCount < this.maxToolCallsPerTurn &&
+      queryCount < this.maxToolCallsPerTurn
     )
 
     if (executeTool == null) {

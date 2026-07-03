@@ -44,27 +44,75 @@ function deepCloneGameState(state: GameState): GameState {
   }
 }
 
+function symmetricSpawnAnchors(width: number, height: number): Array<{ x: number; y: number }> {
+  const margin = Math.max(1, Math.floor(Math.min(width, height) * 0.12))
+  const left = Math.min(margin, width - 1)
+  const right = Math.max(0, width - 1 - margin)
+  const top = Math.min(margin, height - 1)
+  const bottom = Math.max(0, height - 1 - margin)
+  return [
+    { x: left, y: top },
+    { x: right, y: top },
+    { x: right, y: bottom },
+    { x: left, y: bottom },
+  ]
+}
+
+function nearestOpenPosition(
+  anchor: { x: number; y: number },
+  terrain: GameState['terrain'],
+  occupied: Set<string>,
+): { x: number; y: number } | null {
+  let best: { x: number; y: number; distanceSquared: number } | null = null
+
+  for (let y = 0; y < terrain.length; y++) {
+    for (let x = 0; x < (terrain[y]?.length ?? 0); x++) {
+      if (terrain[y][x].terrain !== 'open' || occupied.has(`${x},${y}`)) continue
+      const distanceSquared = (x - anchor.x) ** 2 + (y - anchor.y) ** 2
+      if (
+        best == null ||
+        distanceSquared < best.distanceSquared ||
+        (distanceSquared === best.distanceSquared && (y < best.y || (y === best.y && x < best.x)))
+      ) {
+        best = { x, y, distanceSquared }
+      }
+    }
+  }
+
+  return best == null ? null : { x: best.x, y: best.y }
+}
+
 function createInitialGameState(config: MatchConfig, rng: Rng): GameState {
   const terrain = generateTerrain(config.map, rng)
   const { width, height } = config.map
+  const symmetricAnchors = symmetricSpawnAnchors(width, height)
 
   const occupied = new Set<string>()
   const tanks: TankState[] = config.players.map((player, i) => {
     let position: { x: number; y: number } = { x: 0, y: 0 }
     if (player.startPosition === 'random') {
-      let attempts = 0
       let placed = false
-      while (attempts < 200) {
-        const x = rng.int(0, width - 1)
-        const y = rng.int(0, height - 1)
-        const key = `${x},${y}`
-        if (terrain[y][x].terrain === 'open' && !occupied.has(key)) {
-          position = { x, y }
-          occupied.add(key)
+      if (config.spawnStrategy === 'symmetric' && i < symmetricAnchors.length) {
+        const symmetricPosition = nearestOpenPosition(symmetricAnchors[i], terrain, occupied)
+        if (symmetricPosition) {
+          position = symmetricPosition
+          occupied.add(`${position.x},${position.y}`)
           placed = true
-          break
         }
-        attempts++
+      } else {
+        let attempts = 0
+        while (attempts < 200) {
+          const x = rng.int(0, width - 1)
+          const y = rng.int(0, height - 1)
+          const key = `${x},${y}`
+          if (terrain[y][x].terrain === 'open' && !occupied.has(key)) {
+            position = { x, y }
+            occupied.add(key)
+            placed = true
+            break
+          }
+          attempts++
+        }
       }
       if (!placed) {
         position = { x: Math.min(i, width - 1), y: Math.min(i, height - 1) }
@@ -143,12 +191,20 @@ const TOOLS: ToolSpec[] = [
   },
   {
     name: 'fire_flare',
-    description: 'Fire a flare to reveal terrain',
+    description: 'Fire a flare at a target cell; its circular area reveals terrain and tanks to every player',
     parameters: {
       type: 'object',
       properties: {
-        direction: { type: 'string', enum: ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'] },
-        range: { type: 'integer', minimum: 1 },
+        direction: {
+          type: 'string',
+          enum: ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'],
+          description: 'Direction from the firing tank to the center of the reveal area',
+        },
+        range: {
+          type: 'integer',
+          minimum: 1,
+          description: 'Launch distance to the center of the reveal area; target must remain in bounds',
+        },
       },
       required: ['direction', 'range'],
       additionalProperties: false,

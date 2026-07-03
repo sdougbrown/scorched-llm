@@ -44,6 +44,7 @@ export const PRESETS: Record<string, (seed: number, players: PlayerSpec[]) => Ma
       map: { width: 25, height: 25, obstacleDensity: 0.12, generatorVersion: 'v1', obstacleHeight: 3 },
       fog: { localRadius: 3, flareRadius: 3, flareDuration: 'one-round-global' },
       actionEconomy: 'double',
+      spawnStrategy: 'symmetric',
       shell: { maxRange: 12, apexHeight: 5, tankHeight: 1 },
       turnLimit: 80,
       seed,

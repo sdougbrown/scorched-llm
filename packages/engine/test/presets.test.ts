@@ -25,6 +25,11 @@ describe('duel preset', () => {
     expect(() => parseMatchConfig(config)).not.toThrow()
   })
 
+  it('uses symmetric spawn placement', () => {
+    const config = PRESETS.survival(42, [playerA, playerB, playerC, playerD])
+    expect(config.spawnStrategy).toBe('symmetric')
+  })
+
   it('has correct map dimensions and obstacle density', () => {
     const config = PRESETS.duel(42, [playerA, playerB])
     expect(config.map.width).toBe(20)

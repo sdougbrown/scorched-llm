@@ -68,6 +68,30 @@ describe('runMatch — basic orchestration', () => {
     }
   })
 
+  it('places four symmetric spawns at mirrored anchors on open terrain', async () => {
+    const players = Array.from({ length: 4 }, (_, i) => ({
+      label: `p${i + 1}`,
+      startPosition: 'random' as const,
+      scripted: 'conservative' as const,
+    }))
+    const config = makeConfig({
+      spawnStrategy: 'symmetric',
+      map: { width: 25, height: 25, obstacleDensity: 0, generatorVersion: 'v1', obstacleHeight: 3 },
+      players,
+      turnLimit: 1,
+    })
+    const agents = players.map((player) => alwaysPassAgent(player.label))
+
+    const { log } = await runMatch(config, agents)
+
+    expect(log.initialState.tanks.map((tank) => tank.position)).toEqual([
+      { x: 3, y: 3 },
+      { x: 21, y: 3 },
+      { x: 21, y: 21 },
+      { x: 3, y: 21 },
+    ])
+  })
+
   it('has correct player count in turns', async () => {
     const config = makeConfig({ turnLimit: 6 })
     const { log } = await runMatch(config, [alwaysPassAgent('p1'), alwaysPassAgent('p2')])

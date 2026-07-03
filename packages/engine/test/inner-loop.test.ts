@@ -70,6 +70,35 @@ describe('Inner-loop re-planning', () => {
       expect(model.callCount_).toBe(2)
     })
 
+    it('re-queries after an executed tool call even when the provider reports length', async () => {
+      const response1 = makeResponse({
+        toolCalls: [
+          { id: 'tc-invalid-1', name: 'unsupported_tool', arguments: {} },
+          { id: 'tc1', name: 'known_map', arguments: {} },
+          { id: 'tc-invalid-2', name: 'move', arguments: { direction: 'sideways' } },
+        ],
+        finishReason: 'length',
+      })
+      const response2 = makeResponse({
+        toolCalls: [{ id: 'tc2', name: 'move', arguments: { direction: 'N', distance: 1 } }],
+        finishReason: 'stop',
+      })
+      const model = new FakeModel([response1, response2])
+      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT, 3)
+      const worldview = makeWorldView()
+
+      const result = await agent.takeTurn(worldview, TOOLS, async (call) => ({
+        result: { kind: 'ok' },
+        worldview,
+        ...(call.tool.kind === 'known_map' ? { knownMap: [] } : {}),
+        turnEnded: false,
+      }))
+
+      expect(Array.isArray(result)).toBe(false)
+      expect(result.toolCalls.map((call) => call.tool.kind)).toEqual(['known_map', 'move'])
+      expect(model.callCount_).toBe(3)
+    })
+
     it('accumulates full history across re-queries', async () => {
       const response1 = makeResponse({
         toolCalls: [{ id: 'tc1', name: 'move', arguments: { direction: 'N', distance: 1 } }],

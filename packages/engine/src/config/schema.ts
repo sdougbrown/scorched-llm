@@ -35,6 +35,7 @@ export type PlayerSpec = z.infer<typeof PlayerSpecSchema>
 export const MatchConfigSchema = z.object({
   rulesVersion: z.string(),
   seed: z.number().int(),
+  spawnStrategy: z.enum(['random', 'symmetric']).optional(),
   map: z.object({
     width: z.number().int().min(1),
     height: z.number().int().min(1),
