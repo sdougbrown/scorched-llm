@@ -60,6 +60,34 @@ pnpm --filter @scorched-llm/spectator dev
 
 Then drag-drop a `match-*.json` file onto the browser.
 
+### Watch a match live (live spectate)
+
+For model-backed matches that take minutes, watch the match as it runs — no need to wait for completion.
+
+**Terminal 1** — run the match with `--serve <port>`:
+
+```bash
+pnpm --filter @scorched-llm/engine exec tsx src/cli/index.ts \
+  --config my-match.local.json \
+  --out result.json \
+  --live \
+  --serve 3000
+```
+
+The CLI prints `Live spectate: http://localhost:3000/match.json` and starts serving the match log after each turn completes.
+
+**Terminal 2** — open the spectator and auto-connect:
+
+```bash
+pnpm --filter @scorched-llm/spectator dev
+```
+
+Open `http://localhost:5173/?url=http://localhost:3000/match.json`
+
+The spectator polls every 1.5s, auto-advances the timeline as new turns arrive, and shows a **LIVE** badge. When the match completes, it shows **FINAL** and stops polling.
+
+You can also paste a URL directly into the "Watch URL" input in the spectator UI instead of using the query param.
+
 ### Run a model matchup
 
 1. Copy an example roster and edit with your model configs:
