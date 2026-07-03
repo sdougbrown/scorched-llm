@@ -12,6 +12,7 @@ export class AnimationScheduler {
   private timeline: Timeline | null = null
   private renderer: ArenaRenderer | null = null
   private config: MatchConfig | null = null
+  private onPositionChange: ((index: number) => void) | null = null
 
   play(
     timeline: Timeline,
@@ -19,10 +20,12 @@ export class AnimationScheduler {
     config: MatchConfig,
     fps: number = 30,
     startIndex: number = 0,
+    onPositionChange?: (index: number) => void,
   ): void {
     this.timeline = timeline
     this.renderer = renderer
     this.config = config
+    this.onPositionChange = onPositionChange ?? null
     this.fps = fps
     this.frameInterval = 1000 / fps
     this.playing = true
@@ -32,6 +35,7 @@ export class AnimationScheduler {
     // Render the first frame immediately
     const pos = timeline.seek(this.currentIndex)
     renderer.render(pos.state, config, { showFog: true, showTrajectories: false, animate: true })
+    this.onPositionChange?.(this.currentIndex)
     this.currentIndex++
 
     if (this.currentIndex >= timeline.length()) {
@@ -57,6 +61,7 @@ export class AnimationScheduler {
       // Render current frame immediately on resume
       const pos = this.timeline.seek(Math.max(0, this.currentIndex - 1))
       this.renderer.render(pos.state, this.config, { showFog: true, showTrajectories: false, animate: true })
+      this.onPositionChange?.(Math.max(0, this.currentIndex - 1))
 
       this.tick()
     }
@@ -68,6 +73,7 @@ export class AnimationScheduler {
     this.timeline = null
     this.renderer = null
     this.config = null
+    this.onPositionChange = null
   }
 
   setSpeed(fps: number): void {
@@ -77,6 +83,10 @@ export class AnimationScheduler {
 
   get isPlaying(): boolean {
     return this.playing
+  }
+
+  get isAtEnd(): boolean {
+    return this.timeline !== null && this.currentIndex >= this.timeline.length()
   }
 
   getCurrentPosition(): TimelinePosition | null {
@@ -95,6 +105,7 @@ export class AnimationScheduler {
       showTrajectories: false,
       animate: true,
     })
+    this.onPositionChange?.(clampedPosition)
     this.currentIndex = clampedPosition + 1
     return pos
   }
@@ -110,6 +121,7 @@ export class AnimationScheduler {
 
       const pos = this.timeline.seek(this.currentIndex)
       this.renderer.render(pos.state, this.config, { showFog: true, showTrajectories: false, animate: true })
+      this.onPositionChange?.(this.currentIndex)
 
       this.currentIndex++
 

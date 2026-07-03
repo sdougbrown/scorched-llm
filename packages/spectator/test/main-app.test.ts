@@ -31,6 +31,7 @@ vi.mock('../src/animation.js', () => ({
     stop: vi.fn(),
     setSpeed: vi.fn(),
     get isPlaying() { return false },
+    get isAtEnd() { return false },
     getCurrentPosition: vi.fn(() => null),
   })),
 }))
@@ -199,6 +200,50 @@ describe('initApp', () => {
     const headerInfo = document.querySelector('.app__header__info')
     expect(headerInfo?.textContent).toContain('test')
     expect(headerInfo?.textContent).toContain('0 turns')
+  })
+
+  it('shows the winning model label over the arena for a completed match', () => {
+    const log = makeLog()
+    log.result = {
+      terminationReason: 'last-standing',
+      placements: [
+        { tankId: 'B', rank: 1, hp: 1, damageDealt: 2, hitsLanded: 2 },
+        { tankId: 'A', rank: 2, hp: 0, damageDealt: 0, hitsLanded: 0 },
+      ],
+    }
+
+    fireMatchLoad(log)
+    const scheduler = AnimationSchedulerMock.mock.results.at(-1)?.value
+    const onPositionChange = scheduler.play.mock.calls[0][5] as (position: number) => void
+    onPositionChange(4)
+
+    const overlay = document.querySelector('.app__winner')
+    expect(overlay?.classList.contains('app__winner--hidden')).toBe(false)
+    expect(overlay?.textContent).toBe('B WINS')
+  })
+
+  it('shows a draw over the arena when rank one is tied', () => {
+    const log = makeLog()
+    log.result = {
+      terminationReason: 'mutual-destruction',
+      placements: [
+        { tankId: 'A', rank: 1, hp: 0, damageDealt: 1, hitsLanded: 1, tieGroup: 'draw' },
+        { tankId: 'B', rank: 1, hp: 0, damageDealt: 1, hitsLanded: 1, tieGroup: 'draw' },
+      ],
+    }
+
+    fireMatchLoad(log)
+    const scheduler = AnimationSchedulerMock.mock.results.at(-1)?.value
+    const onPositionChange = scheduler.play.mock.calls[0][5] as (position: number) => void
+    onPositionChange(4)
+
+    expect(document.querySelector('.app__winner')?.textContent).toBe('DRAW')
+  })
+
+  it('hides the winner overlay while a match is incomplete', () => {
+    fireMatchLoad(makeLog())
+
+    expect(document.querySelector('.app__winner')?.classList.contains('app__winner--hidden')).toBe(true)
   })
 
   it('controls are created with scheduler and timeline', () => {

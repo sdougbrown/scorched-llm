@@ -96,6 +96,38 @@ html, body {
   height: 100%;
 }
 
+.app__winner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.app__winner--hidden {
+  display: none;
+}
+
+.app__winner__message {
+  max-width: min(90%, 720px);
+  padding: 16px 28px;
+  border: 2px solid #7f5af0;
+  border-radius: 8px;
+  background: rgba(13, 13, 26, 0.9);
+  box-shadow: 0 0 32px rgba(127, 90, 240, 0.45);
+  color: #fff;
+  font-size: clamp(24px, 5vw, 56px);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 1.1;
+  text-align: center;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
 .app__main {
   display: flex;
   flex: 1 1 auto;
@@ -342,6 +374,13 @@ function buildApp(): AppState {
   const canvas = document.createElement('canvas')
   arenaContainer.appendChild(canvas)
 
+  const winnerEl = document.createElement('div')
+  winnerEl.className = 'app__winner app__winner--hidden'
+  const winnerMessageEl = document.createElement('div')
+  winnerMessageEl.className = 'app__winner__message'
+  winnerEl.appendChild(winnerMessageEl)
+  arenaContainer.appendChild(winnerEl)
+
   // Traces panel
   const tracesEl = document.createElement('div')
   tracesEl.className = 'app__traces'
@@ -416,6 +455,35 @@ interface BuildContext {
   headerInfo: HTMLSpanElement
 }
 
+function updateWinnerOverlay(
+  arenaContainer: HTMLElement,
+  log: MatchLog,
+  atFinalPosition: boolean,
+): void {
+  const overlay = arenaContainer.querySelector<HTMLElement>('.app__winner')
+  const message = overlay?.querySelector<HTMLElement>('.app__winner__message')
+  if (!overlay || !message) return
+
+  const winners = log.result.placements.filter((placement) => placement.rank === 1)
+  if (!atFinalPosition || winners.length === 0) {
+    overlay.classList.add('app__winner--hidden')
+    message.textContent = ''
+    return
+  }
+
+  if (winners.length > 1 || winners[0].tieGroup) {
+    message.textContent = 'DRAW'
+  } else {
+    const winner = winners[0]
+    const tankIndex = log.initialState.tanks.findIndex((tank) => tank.id === winner.tankId)
+    const player = tankIndex >= 0 ? log.config.players[tankIndex] : undefined
+    const modelName = player?.label || player?.model?.model || winner.tankId
+    message.textContent = `${modelName} WINS`
+  }
+
+  overlay.classList.remove('app__winner--hidden')
+}
+
 function onLoadMatch(
   state: AppState,
   log: MatchLog,
@@ -441,6 +509,7 @@ function onLoadMatch(
   // Create timeline
   const timeline = createTimeline(log)
   state.timeline = timeline
+  updateWinnerOverlay(ctx.arenaContainer, log, false)
 
   // Create renderer
   const renderer = createArenaRenderer(ctx.canvas)
@@ -456,7 +525,18 @@ function onLoadMatch(
   state.resizeHandler = onResize
 
   // Start scheduler
-  scheduler.play(timeline, renderer, log.config, 30, startPosition)
+  scheduler.play(
+    timeline,
+    renderer,
+    log.config,
+    30,
+    startPosition,
+    (position) => updateWinnerOverlay(
+      ctx.arenaContainer,
+      log,
+      position === timeline.length() - 1,
+    ),
+  )
 
   // Replace controls placeholder with real controls
   const controls = createControls(scheduler, timeline)
@@ -526,6 +606,11 @@ function startLiveWatch(state: AppState, url: string, ctx: BuildContext): void {
 
       if (log.turns.length === oldLog.turns.length) {
         state.log = log
+        updateWinnerOverlay(
+          ctx.arenaContainer,
+          log,
+          state.scheduler?.isAtEnd ?? false,
+        )
         updateLiveActivity(log)
         return
       }
