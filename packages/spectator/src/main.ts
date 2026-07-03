@@ -233,6 +233,7 @@ interface AppState {
   resizeHandler: (() => void) | null
   liveBadgeEl: HTMLElement | null
   liveStopBtn: HTMLButtonElement | null
+  headerInfoEl: HTMLElement | null
   watcher: LiveWatcher | null
   buildCtx: BuildContext | null
 }
@@ -262,6 +263,7 @@ function buildApp(): AppState {
     resizeHandler: null,
     liveBadgeEl: null,
     liveStopBtn: null,
+    headerInfoEl: null,
     watcher: null,
     buildCtx: null,
   }
@@ -375,6 +377,7 @@ function buildApp(): AppState {
 
   state.liveBadgeEl = liveBadgeEl
   state.liveStopBtn = liveStopBtn
+  state.headerInfoEl = infoEl
 
   liveStopBtn.addEventListener('click', (): void => {
     stopLiveWatch(state, {
@@ -648,7 +651,7 @@ export function initApp(): AppState {
       canvas: (appState.loaderEl!.parentElement as HTMLElement).querySelector('canvas') as HTMLCanvasElement,
       tracesEl: (appState.loaderEl!.parentElement as HTMLElement).querySelector('.app__traces') as HTMLDivElement,
       controlsPlaceholder: appState.controlsEl as HTMLDivElement,
-      headerInfo: appState.loaderEl!.closest('.app__header')!.querySelector('.app__header__info') as HTMLSpanElement,
+      headerInfo: appState.headerInfoEl as HTMLSpanElement,
     })
   }
 
