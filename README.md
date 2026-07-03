@@ -87,7 +87,7 @@ yarn workspace @scorched-llm/spectator exec vite --host 0.0.0.0
 Open from any machine on your network:
 
 ```
-http://<host-ip>:5173/?url=http://<host-ip>:3030/match.json
+http://<host-ip>:5173/#url=http://<host-ip>:3030/match.json
 ```
 
 The spectator polls every 1.5s, auto-advances the timeline as new turns arrive, and shows a **LIVE** badge. When the match completes, it shows **FINAL** and stops polling.

@@ -639,8 +639,9 @@ export function initApp(): AppState {
   const appState = buildApp()
   stateRef.current = appState
 
-  const params = new URLSearchParams(window.location.search)
-  const url = params.get('url')
+  const hash = window.location.hash.slice(1)
+  const hashParams = new URLSearchParams(hash)
+  const url = hashParams.get('url')
   if (url) {
     startLiveWatch(appState, url, {
       arenaContainer: (appState.loaderEl!.parentElement as HTMLElement).querySelector('.app__arena-container') as HTMLDivElement,
