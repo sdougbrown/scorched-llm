@@ -64,7 +64,7 @@ Then drag-drop a `match-*.json` file onto the browser.
 
 ### Watch a match live (live spectate)
 
-For model-backed matches that take minutes, watch the match as it runs — no need to wait for completion.
+For model-backed matches that take minutes, watch the match as it runs — no need to wait for completion. Works headless / remote — the engine server binds to `0.0.0.0` so it's reachable from other machines on your network (e.g. a Tailscale tailnet).
 
 **Terminal 1** — run the match with `--serve <port>`:
 
@@ -73,18 +73,22 @@ node packages/engine/bin/engine-cli.js \
   --config my-match.local.json \
   --out result.json \
   --live \
-  --serve 3000
+  --serve 3030
 ```
 
-The CLI prints `Live spectate: http://localhost:3000/match.json` and starts serving the match log after each turn completes.
+The CLI prints `Live spectate: http://0.0.0.0:3030/match.json` and starts serving the match log after each turn completes.
 
-**Terminal 2** — open the spectator and auto-connect:
+**Terminal 2** — start the spectator (add `--host 0.0.0.0` if running headless/remote):
 
 ```bash
-yarn workspace @scorched-llm/spectator dev
+yarn workspace @scorched-llm/spectator exec vite --host 0.0.0.0
 ```
 
-Open `http://localhost:5173/?url=http://localhost:3000/match.json`
+Open from any machine on your network:
+
+```
+http://<host-ip>:5173/?url=http://<host-ip>:3030/match.json
+```
 
 The spectator polls every 1.5s, auto-advances the timeline as new turns arrive, and shows a **LIVE** badge. When the match completes, it shows **FINAL** and stops polling.
 
