@@ -126,6 +126,12 @@ describe('aggregateLogs', () => {
     expect(summary.perPlayer['A'].totalHitsLanded).toBe(5)
     expect(summary.perPlayer['B'].totalDamageDealt).toBe(9)
     expect(summary.perPlayer['B'].totalHitsLanded).toBe(2)
+    expect(summary.perPlayer['A'].meanPlacement).toBe(1)
+    expect(summary.perPlayer['A'].avgDamagePerMatch).toBe(9)
+    expect(summary.leaderboard.map((entry) => entry.label)).toEqual(['A', 'B'])
+    expect(summary.leaderboard.map((entry) => entry.rank)).toEqual([1, 2])
+    expect(summary.overallWinner).toBe('A')
+    expect(summary.terminationDistribution).toEqual({ 'last-standing': 2 })
   })
 
   it('counts invalid action calls', () => {
@@ -153,6 +159,54 @@ describe('aggregateLogs', () => {
 
     expect(summary.perPlayer['A'].totalInvalidCalls).toBe(2)
     expect(summary.perPlayer['B'].totalInvalidCalls).toBe(0)
+    expect(summary.perPlayer['A'].totalToolCalls).toBe(3)
+    expect(summary.perPlayer['A'].successfulToolCalls).toBe(1)
+    expect(summary.perPlayer['A'].toolCallSuccessRate).toBeCloseTo(1 / 3)
+    expect(summary.perPlayer['A'].invalidCallRate).toBeCloseTo(2 / 3)
+  })
+
+  it('computes shell accuracy and token efficiency', () => {
+    const log = buildMatchLog({
+      turns: [
+        buildTurn({
+          player: 'tank-0',
+          actions: [
+            {
+              kind: 'shell',
+              call: { id: 'hit', tool: { kind: 'fire_shell', angle: 90, power: 5 } },
+              result: { kind: 'hit', targetId: 'tank-1', damage: 1 },
+              snapshot: EMPTY_SNAPSHOT,
+            },
+            {
+              kind: 'shell',
+              call: { id: 'miss', tool: { kind: 'fire_shell', angle: 90, power: 5 } },
+              result: { kind: 'miss' },
+              snapshot: EMPTY_SNAPSHOT,
+            },
+          ],
+          modelTrace: {
+            toolCalls: [],
+            tokensIn: 100,
+            tokensOut: 500,
+            costUsd: 2,
+            latencyMs: 100,
+            finishReason: 'stop',
+          },
+        }),
+      ],
+    })
+
+    const summary = aggregateLogs(
+      [log],
+      [{ matchId: 1, seatAssignment: { 0: 'A', 1: 'B' } }],
+      'duel',
+    )
+
+    expect(summary.perPlayer['A'].shellCalls).toBe(2)
+    expect(summary.perPlayer['A'].shellHits).toBe(1)
+    expect(summary.perPlayer['A'].shellHitRate).toBe(0.5)
+    expect(summary.perPlayer['A'].damagePer1kOutputTokens).toBe(20)
+    expect(summary.perPlayer['A'].winsPerKnownDollar).toBe(0.5)
   })
 
   it('accumulates modelTrace stats', () => {
@@ -229,6 +283,26 @@ describe('aggregateLogs', () => {
     expect(summary.perPlayer['A'].totalKnownCostUsd).toBe(0)
     expect(summary.perPlayer['A'].avgLatencyMs).toBe(0)
     expect(summary.perPlayer['A'].medianLatencyMs).toBe(0)
+  })
+
+  it('reports batch failures as exposure rather than assigning blame', () => {
+    const summary = aggregateLogs(
+      [buildMatchLog()],
+      [
+        { matchId: 1, seatAssignment: { 0: 'A', 1: 'B' } },
+        { matchId: 2, seatAssignment: { 0: 'A', 1: 'C' }, failure: 'request timed out' },
+      ],
+      'duel',
+    )
+
+    expect(summary.matchesScheduled).toBe(2)
+    expect(summary.matchesTotal).toBe(1)
+    expect(summary.matchesFailed).toBe(1)
+    expect(summary.failureRate).toBe(0.5)
+    expect(summary.perPlayer['A'].failureExposureRate).toBe(0.5)
+    expect(summary.perPlayer['B'].failureExposureRate).toBe(0)
+    expect(summary.perPlayer['C'].failedMatchCount).toBe(1)
+    expect(summary.perPlayer['C'].matchCount).toBe(0)
   })
 
   it('passes reconciliation on clean logs', () => {
@@ -313,6 +387,9 @@ describe('aggregateLogs', () => {
     expect(summary.perPlayer['B'].winCount).toBe(0)
     expect(summary.perPlayer['A'].placementDistribution[1]).toBe(1)
     expect(summary.perPlayer['B'].placementDistribution[1]).toBe(1)
+    expect(summary.leaderboard[0].rank).toBe(1)
+    expect(summary.leaderboard[1].rank).toBe(1)
+    expect(summary.overallWinner).toBeNull()
   })
 
   it('counts unique matches with unknown cost', () => {

@@ -285,18 +285,34 @@ Produces `summary.json` with per-player stats:
 
 | Metric | Description |
 |--------|-------------|
+| `meanPlacement` | Mean finishing rank; lower is better |
 | `winRate` | Wins / matches (rank 1 in non-draw) |
 | `placementDistribution` | Count of each rank |
-| `totalDamageDealt` | Cumulative damage |
-| `totalHitsLanded` | Cumulative hits |
-| `totalInvalidCalls` | Invalid/blocked tool calls |
+| `avgDamagePerMatch` / `avgHitsPerMatch` | Combat output normalized by completed matches |
+| `shellHitRate` | Shell hits / shell attempts, including invalid or blocked attempts |
+| `toolCallSuccessRate` | Calls accepted by the engine (not blocked or invalid) / total calls |
+| `invalidCallRate` | Invalid calls / total calls |
+| `avgSurvivalTurns` | Mean global turn of destruction, or match-ending turn for survivors |
 | `totalTokensIn` / `totalTokensOut` | From model traces (0 for scripted) |
+| `damagePer1kOutputTokens` | Damage efficiency; `null` when no output tokens were recorded |
 | `totalKnownCostUsd` | Sum of cost where pricing configured |
+| `winsPerKnownDollar` | Cost efficiency; `null` when no known non-zero cost was recorded |
 | `avgLatencyMs` / `medianLatencyMs` | Model response latency |
+| `failureExposureRate` | Failed scheduled matches containing the player; exposure, not fault attribution |
 
-The summary includes a **reconciliation** block that asserts counts match — if any aggregation drifts from the raw logs, it fails loud.
+The summary also includes:
 
-Raw metrics are preserved. There is no composite score — evaluate models on the dimensions that matter to you.
+- `leaderboard` — competitors sorted by mean placement, win rate, damage per
+  match, shell hit rate, then invalid-call rate.
+- `overallWinner` — the sole rank-one label, or `null` for an exact competitive
+  tie.
+- `terminationDistribution` and batch-wide failure counts/rate.
+- `reconciliation` — assertions that match, damage, and hit totals agree with
+  the raw logs. Aggregation fails loudly if they drift.
+
+The leaderboard is lexically ordered only to keep exact ties stable in JSON;
+model names never break a competitive tie. Raw totals remain available in
+`perPlayer`, and efficiency metrics do not affect competitive rank.
 
 ## Spectator
 
