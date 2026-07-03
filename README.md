@@ -37,10 +37,12 @@ yarn install
 yarn build
 ```
 
+The CLI runs from compiled output — `yarn build` must complete before any match commands work.
+
 ### Run a scripted exhibition (no API keys)
 
 ```bash
-yarn workspace @scorched-llm/engine exec tsx src/cli/index.ts exhibition \
+node packages/engine/bin/engine-cli.js exhibition \
   --preset duel \
   --out ./exhibitions/duel-scripted
 ```
@@ -67,7 +69,7 @@ For model-backed matches that take minutes, watch the match as it runs — no ne
 **Terminal 1** — run the match with `--serve <port>`:
 
 ```bash
-yarn workspace @scorched-llm/engine exec tsx src/cli/index.ts \
+node packages/engine/bin/engine-cli.js \
   --config my-match.local.json \
   --out result.json \
   --live \
@@ -130,7 +132,7 @@ cp examples/roster-duel.example.json roster-myorg.local.json
 export OPENAI_API_KEY=sk-...
 export ANTHROPIC_API_KEY=sk-ant-...
 
-yarn workspace @scorched-llm/engine exec tsx src/cli/index.ts batch \
+node packages/engine/bin/engine-cli.js batch \
   --roster roster-myorg.local.json \
   --preset duel \
   --out ./exhibitions/duel-models \
@@ -140,7 +142,7 @@ yarn workspace @scorched-llm/engine exec tsx src/cli/index.ts batch \
 4. Aggregate results:
 
 ```bash
-yarn workspace @scorched-llm/engine exec tsx src/cli/index.ts aggregate \
+node packages/engine/bin/engine-cli.js aggregate \
   --out ./exhibitions/duel-models
 ```
 
@@ -219,7 +221,7 @@ Any OpenAI-compatible `/chat/completions` endpoint works with no extra config:
 For full control, write a complete `MatchConfig` JSON and run a single match:
 
 ```bash
-yarn workspace @scorched-llm/engine exec tsx src/cli/index.ts \
+node packages/engine/bin/engine-cli.js \
   --config my-match.local.json \
   --out match.json \
   --live
@@ -235,7 +237,7 @@ The batch runner round-robins a roster over a committed seed suite with paired s
 - **Survival:** every 4-player combination × each seed (seating rotates across seeds)
 
 ```bash
-yarn workspace @scorched-llm/engine exec tsx src/cli/index.ts batch \
+node packages/engine/bin/engine-cli.js batch \
   --roster <roster.json> \
   --preset <duel|blitz|survival> \
   --out <output-dir> \
@@ -263,7 +265,7 @@ The schedule is deterministic — same roster + preset + seeds always produces t
 After a batch run, aggregate the results:
 
 ```bash
-yarn workspace @scorched-llm/engine exec tsx src/cli/index.ts aggregate --out <output-dir>
+node packages/engine/bin/engine-cli.js aggregate --out <output-dir>
 ```
 
 Produces `summary.json` with per-player stats:
