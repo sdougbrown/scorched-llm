@@ -119,6 +119,30 @@ describe('runMatch — basic orchestration', () => {
     }
   })
 
+  it('expires a flare before the firer next scheduled turn', async () => {
+    const config = makeConfig({
+      turnLimit: 3,
+      actionEconomy: 'single',
+      map: { width: 20, height: 20, obstacleDensity: 0, generatorVersion: 'v1', obstacleHeight: 3 },
+      players: [
+        { label: 'p1', startPosition: { x: 5, y: 5 } },
+        { label: 'p2', startPosition: { x: 15, y: 15 } },
+      ],
+    })
+    const firer = fixtureCallAgent('p1', [
+      { id: 'flare-1', tool: { kind: 'fire_flare', direction: 'N', range: 2 } },
+      { id: 'pass-1', tool: { kind: 'pass' } },
+    ])
+
+    const { log } = await runMatch(config, [firer, alwaysPassAgent('p2')])
+
+    expect(log.turns[0].actions[0].snapshot.flares[0].expiryTurn).toBe(3)
+    expect(log.turns[1].worldview.activeFlares).toHaveLength(1)
+    expect(log.turns[2].turn).toBe(3)
+    expect(log.turns[2].worldview.activeFlares).toEqual([])
+    expect(log.turns[2].worldview.flaredCells).toEqual([])
+  })
+
   it('publishes the current thinking player before awaiting the agent', async () => {
     const updates: MatchLog[] = []
     const config = makeConfig({ turnLimit: 1 })

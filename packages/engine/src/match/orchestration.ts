@@ -508,7 +508,8 @@ export async function runMatch(
   onTurnComplete?.(log)
 
   while (runner.turnCursor < config.turnLimit) {
-    runner.state = expireFlares(runner.state, runner.turnCursor)
+    const nextTurn = runner.turnCursor + 1
+    runner.state = expireFlares(runner.state, nextTurn)
 
     const aliveCount = getAliveCount(runner.state)
     if (aliveCount <= 1) break
@@ -531,7 +532,7 @@ export async function runMatch(
     runner.remainingMoveBudget = getMoveBudget(config)
     runner.invalidStreak = 0
 
-    runner.turnCursor++
+    runner.turnCursor = nextTurn
     runner.state.turn = runner.turnCursor
     runner.state.currentPlayerIndex = runner.playerCursor
 
