@@ -134,6 +134,39 @@ describe('createArenaRenderer', () => {
     expect(() => renderer.render(tankState, config)).not.toThrow()
   })
 
+  it('animates a tank transitioning from alive to destroyed', () => {
+    renderer.render(state, config, { animate: true })
+    const destroyedState = makeState({
+      tanks: [
+        state.tanks[0],
+        { ...state.tanks[1], hp: 0, alive: false },
+      ],
+    })
+
+    renderer.render(destroyedState, config, { animate: true })
+
+    expect(canvas._mockCtx.save).toHaveBeenCalled()
+    expect(canvas._mockCtx.fillText).toHaveBeenCalledWith(
+      'B DESTROYED', expect.any(Number), expect.any(Number),
+    )
+  })
+
+  it('shows a persistent wreck without animating when seeking directly', () => {
+    const destroyedState = makeState({
+      tanks: [
+        state.tanks[0],
+        { ...state.tanks[1], hp: 0, alive: false },
+      ],
+    })
+
+    renderer.render(destroyedState, config, { animate: false })
+
+    expect(canvas._mockCtx.fillText).toHaveBeenCalledWith(
+      'B', expect.any(Number), expect.any(Number),
+    )
+    expect(canvas._mockCtx.save).not.toHaveBeenCalled()
+  })
+
   it('renders with flares', () => {
     const flareState = makeState({
       flares: [

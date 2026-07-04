@@ -23,6 +23,13 @@ export function createArenaRenderer(canvas: HTMLCanvasElement): ArenaRenderer {
   const ctx = canvas.getContext('2d')!
   let width = 800
   let height = 800
+  let previousState: GameState | null = null
+  const destructionEffects = new Map<string, {
+    position: { x: number; y: number }
+    color: string
+    startedAt: number
+  }>()
+  const destructionDurationMs = 1200
 
   function drawStar(cx: number, cy: number, spikes: number, outerR: number, innerR: number): void {
     ctx.beginPath()
@@ -225,6 +232,110 @@ export function createArenaRenderer(canvas: HTMLCanvasElement): ArenaRenderer {
     }
   }
 
+  function updateDestructionEffects(state: GameState, animate: boolean): void {
+    if (previousState != null) {
+      for (let i = 0; i < state.tanks.length; i++) {
+        const tank = state.tanks[i]
+        const previousTank = previousState.tanks.find((candidate) => candidate.id === tank.id)
+        if (previousTank?.alive && !tank.alive && animate) {
+          destructionEffects.set(tank.id, {
+            position: { ...tank.position },
+            color: getTankColor(i),
+            startedAt: performance.now(),
+          })
+        } else if (!previousTank?.alive && tank.alive) {
+          destructionEffects.delete(tank.id)
+        }
+      }
+    }
+    previousState = structuredClone(state)
+  }
+
+  function drawDestroyedTanks(state: GameState): void {
+    const mapWidth = state.terrain[0].length
+    const mapHeight = state.terrain.length
+    const cellSize = getCellSize(mapWidth, mapHeight)
+
+    for (let i = 0; i < state.tanks.length; i++) {
+      const tank = state.tanks[i]
+      if (tank.alive) continue
+      const center = getCellCenter(tank.position.x, tank.position.y, mapWidth, mapHeight)
+      const radius = cellSize * 0.3
+
+      ctx.fillStyle = 'rgba(30, 30, 30, 0.8)'
+      ctx.beginPath()
+      ctx.arc(center.x, center.y, radius, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.strokeStyle = getTankColor(i)
+      ctx.lineWidth = Math.max(2, cellSize * 0.08)
+      ctx.beginPath()
+      ctx.moveTo(center.x - radius * 0.65, center.y - radius * 0.65)
+      ctx.lineTo(center.x + radius * 0.65, center.y + radius * 0.65)
+      ctx.moveTo(center.x + radius * 0.65, center.y - radius * 0.65)
+      ctx.lineTo(center.x - radius * 0.65, center.y + radius * 0.65)
+      ctx.stroke()
+      ctx.fillStyle = '#fff'
+      ctx.font = `${Math.max(8, cellSize * 0.2)}px sans-serif`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(tank.id, center.x, center.y)
+    }
+  }
+
+  function drawDestructionEffects(state: GameState): void {
+    const now = performance.now()
+    const mapWidth = state.terrain[0].length
+    const mapHeight = state.terrain.length
+    const cellSize = getCellSize(mapWidth, mapHeight)
+
+    for (const [tankId, effect] of destructionEffects) {
+      const progress = (now - effect.startedAt) / destructionDurationMs
+      if (progress >= 1) {
+        destructionEffects.delete(tankId)
+        continue
+      }
+
+      const center = getCellCenter(effect.position.x, effect.position.y, mapWidth, mapHeight)
+      const eased = 1 - (1 - progress) ** 3
+      const outerRadius = cellSize * (0.4 + eased * 1.1)
+
+      ctx.save()
+      ctx.globalAlpha = 1 - progress
+      ctx.fillStyle = '#fff3b0'
+      ctx.beginPath()
+      ctx.arc(center.x, center.y, cellSize * (0.45 + eased * 0.35), 0, Math.PI * 2)
+      ctx.fill()
+
+      ctx.strokeStyle = '#ff5a1f'
+      ctx.lineWidth = Math.max(3, cellSize * 0.12)
+      ctx.beginPath()
+      ctx.arc(center.x, center.y, outerRadius, 0, Math.PI * 2)
+      ctx.stroke()
+
+      ctx.strokeStyle = effect.color
+      ctx.lineWidth = Math.max(2, cellSize * 0.07)
+      for (let ray = 0; ray < 8; ray++) {
+        const angle = (Math.PI * 2 * ray) / 8
+        ctx.beginPath()
+        ctx.moveTo(
+          center.x + Math.cos(angle) * outerRadius * 0.55,
+          center.y + Math.sin(angle) * outerRadius * 0.55,
+        )
+        ctx.lineTo(
+          center.x + Math.cos(angle) * outerRadius,
+          center.y + Math.sin(angle) * outerRadius,
+        )
+        ctx.stroke()
+      }
+      ctx.fillStyle = '#7a1600'
+      ctx.font = `bold ${Math.max(11, cellSize * 0.3)}px sans-serif`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'bottom'
+      ctx.fillText(`${tankId} DESTROYED`, center.x, center.y - outerRadius - 4)
+      ctx.restore()
+    }
+  }
+
   function drawFog(state: GameState, config: MatchConfig): void {
     if (!config.fog || !config.fog.localRadius) return
 
@@ -321,12 +432,13 @@ export function createArenaRenderer(canvas: HTMLCanvasElement): ArenaRenderer {
 
     render(state: GameState, config: MatchConfig, options: Partial<RenderOptions> = {}): void {
       try {
-        const { showFog = true, showTrajectories = false } = options
+        const { showFog = true, showTrajectories = false, animate = true } = options
         const { terrain } = state
         if (!terrain || terrain.length === 0) return
 
         const mapHeight = terrain.length
         const mapWidth = terrain[0].length
+        updateDestructionEffects(state, animate)
 
         ctx.clearRect(0, 0, width, height)
 
@@ -336,6 +448,8 @@ export function createArenaRenderer(canvas: HTMLCanvasElement): ArenaRenderer {
         if (showTrajectories) drawTrajectories(state)
         if (showFog && config.fog) drawFog(state, config)
         drawGrid(mapWidth, mapHeight)
+        drawDestroyedTanks(state)
+        drawDestructionEffects(state)
         drawLegend(mapWidth, mapHeight)
       } catch {
         // Never throw — rendering errors are visually silent
