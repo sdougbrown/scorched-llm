@@ -84,6 +84,15 @@ describe('fireFlare — activation', () => {
     expect(result.cells.length).toBe(13)
   })
 
+  it('reports only in-bounds revealed cells near a map edge', () => {
+    const state = createState([{ id: 't1', position: { x: 2, y: 2 }, hp: 2, maxHp: 2, alive: true, facing: 0, damageDealt: 0, hitsLanded: 0 }])
+    const { result } = fireFlare(state, config, 't1', 'NW', 2)
+    expect(result.kind).toBe('revealed')
+    expect(result.cells.length).toBeLessThan(13)
+    expect(result.cells.every((cell) =>
+      cell.x >= 0 && cell.x < 10 && cell.y >= 0 && cell.y < 10)).toBe(true)
+  })
+
   it('blocks when target is out of bounds', () => {
     const state = createState([{ id: 't1', position: { x: 5, y: 0 }, hp: 2, maxHp: 2, alive: true, facing: 0, damageDealt: 0, hitsLanded: 0 }])
     const { result } = fireFlare(state, config, 't1', 'N', 10)

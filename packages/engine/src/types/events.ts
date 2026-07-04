@@ -8,6 +8,15 @@ export interface WorldView {
   facing: number
   localScan: Cell[]
   flaredCells: Array<{ cell: Cell; firerId: string; activatedTurn: number; expiryTurn: number }>
+  /** Structured metadata for active flares. Optional for v1/v2 replay compatibility. */
+  activeFlares?: Array<{
+    id: string
+    targetCell: Coordinate
+    radius: number
+    firerId: string
+    activatedTurn: number
+    expiryTurn: number
+  }>
   inEnemyFlare: Array<{ firerId: string; expiryTurn: number }>
   remainingActions: number
   turn: number

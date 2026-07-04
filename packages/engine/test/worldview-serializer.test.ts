@@ -63,10 +63,20 @@ describe('serializeWorldView', () => {
       flaredCells: [
         { cell, firerId: 'tank-1', activatedTurn: 2, expiryTurn: 7 },
       ],
+      activeFlares: [{
+        id: 'flare-1',
+        targetCell: { x: 7, y: 5 },
+        radius: 3,
+        firerId: 'tank-1',
+        activatedTurn: 2,
+        expiryTurn: 7,
+      }],
     }))
     expect(result).toContain('Active flares')
     expect(result).toContain('tank-1')
-    expect(result).toContain('(7,5) open')
+    expect(result).toContain('center (7,5), radius 3')
+    expect(result).toContain('expires before turn 7')
+    expect(result).toContain('y=5: x=7')
   })
 
   it('includes enemy flare warning', () => {
@@ -77,7 +87,7 @@ describe('serializeWorldView', () => {
     }))
     expect(result).toContain('WARNING')
     expect(result).toContain('tank-1')
-    expect(result).toContain('expires turn 7')
+    expect(result).toContain('expires before turn 7')
   })
 
   it('includes alive enemy count', () => {
@@ -94,8 +104,8 @@ describe('serializeWorldView', () => {
     }))
     expect(result).toContain('tank-1')
     expect(result).toContain('tank-2')
-    expect(result).toContain('expires turn 5')
-    expect(result).toContain('expires turn 8')
+    expect(result).toContain('expires before turn 5')
+    expect(result).toContain('expires before turn 8')
   })
 
   it('produces a non-empty string', () => {

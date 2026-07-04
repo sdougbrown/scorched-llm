@@ -24,8 +24,8 @@ function makeConfig(overrides: Partial<MatchConfig>): MatchConfig {
 }
 
 describe('SYSTEM_PROMPT_VERSION', () => {
-  it('is v2', () => {
-    expect(SYSTEM_PROMPT_VERSION).toBe('v2')
+  it('is v3', () => {
+    expect(SYSTEM_PROMPT_VERSION).toBe('v3')
   })
 })
 
@@ -86,6 +86,8 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('move')
     expect(prompt).toContain('direction')
     expect(prompt).toContain('distance')
+    expect(prompt).toContain('Every traversed cell')
+    expect(prompt).toContain('entire move is blocked')
   })
 
   it('contains fire_flare tool description', () => {
@@ -95,6 +97,8 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('separate from the reveal radius')
     expect(prompt).toContain('your own cell is inside the flare')
     expect(prompt).toContain('revealed to every opponent')
+    expect(prompt).toContain('diagonal range 3 changes both coordinates by 3')
+    expect(prompt).toContain('NE from (10,10) targets (13,7)')
   })
 
   it('contains fire_shell tool description', () => {

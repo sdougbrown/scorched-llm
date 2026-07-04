@@ -162,6 +162,14 @@ describe('buildWorldView — flared cells', () => {
     expect(entry!.firerId).toBe('t1')
     expect(entry!.activatedTurn).toBe(5)
     expect(entry!.expiryTurn).toBe(25)
+    expect(view.activeFlares).toEqual([{
+      id: 'f1',
+      targetCell: { x: 10, y: 10 },
+      radius: 2,
+      firerId: 't1',
+      activatedTurn: 5,
+      expiryTurn: 25,
+    }])
   })
 })
 

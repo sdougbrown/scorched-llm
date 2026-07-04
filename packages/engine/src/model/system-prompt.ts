@@ -1,6 +1,6 @@
 import type { MatchConfig } from '../config/schema.js'
 
-export const SYSTEM_PROMPT_VERSION = 'v2'
+export const SYSTEM_PROMPT_VERSION = 'v3'
 
 export function buildSystemPrompt(config: MatchConfig, label: string): string {
   const actionBudget = config.actionEconomy === 'double' ? 2 : 1
@@ -33,7 +33,7 @@ export function buildSystemPrompt(config: MatchConfig, label: string): string {
     `- Your local vision radius is ${localRadius} cells.`,
     `- Flares reveal tanks and terrain in a circular area of radius ${flareRadius} for one round (until your next turn). The area is visible to every player.`,
     `- Each move can travel at most ${moveMax} cells. Your total movement allowance is ${totalMoveMax} cells across ${actionBudget} action(s), and each move still consumes one action.`,
-    `- You can move in 8 directions: N, NE, E, SE, S, SW, W, NW.`,
+    `- You can move in 8 directions: N, NE, E, SE, S, SW, W, NW. Every traversed cell must be in bounds, open, and unoccupied; otherwise the entire move is blocked.`,
     `- Maximum movement distance per move is ${moveMax} cells.`,
     `- Flare and shell are mutually exclusive — you may fire at most one offensive action (flare or shell) per turn.`,
     `- Shells follow a fixed parabolic arc: height ${tankHeight} at the firing and target cells, peaking at height ${shellApexHeight} halfway through the flight.`,
@@ -51,6 +51,7 @@ export function buildSystemPrompt(config: MatchConfig, label: string): string {
     `- ${backtick}fire_flare${backtick}: Fire a flare whose center lands ${backtick}range${backtick} cells away, revealing a circular radius-${flareRadius} area to ALL players. Expires at your next turn.`,
     `  - ${backtick}direction${backtick}: One of N, NE, E, SE, S, SW, W, NW.`,
     `  - ${backtick}range${backtick}: Positive integer launch distance. The target must remain inside the map; this is separate from the reveal radius.`,
+    `  - Range uses grid steps: cardinal range 3 changes one coordinate by 3; diagonal range 3 changes both coordinates by 3 (for example, NE from (10,10) targets (13,7)).`,
     `  - Warning: if ${backtick}range${backtick} is ${flareRadius} or less, your own cell is inside the flare and your tank is revealed to every opponent.`,
     '',
     `- ${backtick}fire_shell${backtick}: Fire a shell at an enemy. Damage is calculated based on angle and power.`,

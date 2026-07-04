@@ -1,5 +1,6 @@
 import type { WorldView } from '../types/events.js'
 import type { Cell } from '../types/coords.js'
+import { serializeKnownMap } from './tactical-memory.js'
 
 /** Convert a WorldView into a structured text description for the model. */
 export function serializeWorldView(view: WorldView): string {
@@ -28,21 +29,27 @@ export function serializeWorldView(view: WorldView): string {
       flareGroups.get(key)!.cells.push(fc.cell)
     }
     for (const group of flareGroups.values()) {
-      lines.push(`  Flare fired by ${group.firerId} at turn ${group.activatedTurn}, active until turn ${group.expiryTurn}`)
-      const visibleCells = group.cells.slice(0, 20)
-      for (const cell of visibleCells) {
-        lines.push(`    (${cell.coord.x},${cell.coord.y}) ${cell.terrain}`)
+      const metadata = view.activeFlares?.find((flare) =>
+        flare.firerId === group.firerId &&
+        flare.activatedTurn === group.activatedTurn &&
+        flare.expiryTurn === group.expiryTurn)
+      if (metadata != null) {
+        lines.push(
+          `  ${metadata.id} fired by ${group.firerId} at turn ${group.activatedTurn}: ` +
+          `center (${metadata.targetCell.x},${metadata.targetCell.y}), radius ${metadata.radius}; ` +
+          `expires before turn ${group.expiryTurn}.`,
+        )
+      } else {
+        lines.push(`  Flare fired by ${group.firerId} at turn ${group.activatedTurn}; expires before turn ${group.expiryTurn}.`)
       }
-      if (group.cells.length > 20) {
-        lines.push(`    ... and ${group.cells.length - 20} more cells`)
-      }
+      lines.push(...serializeKnownMap(group.cells).split('\n').map((line) => `    ${line}`))
     }
     lines.push('')
   }
 
   // Enemy flare warnings
   for (const ef of view.inEnemyFlare) {
-    lines.push(`WARNING: You are inside an enemy flare fired by ${ef.firerId} (expires turn ${ef.expiryTurn})!`)
+    lines.push(`WARNING: You are inside an enemy flare fired by ${ef.firerId} (expires before turn ${ef.expiryTurn})!`)
   }
 
   if (view.inEnemyFlare.length > 0) {

@@ -72,6 +72,7 @@ export function fireFlare(
   newState.flares = [...state.flares, flare]
 
   const revealedCells = cellsInRadius(targetCell, config.fog.flareRadius)
+    .filter((cell) => inBounds(cell, width, height))
 
   return {
     newState,
