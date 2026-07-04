@@ -5,6 +5,8 @@ import type { Cell } from '../types/coords.js'
 export interface AgentMessage {
   role: 'system' | 'user' | 'assistant' | 'tool'
   content: string
+  reasoningContent?: string
+  reasoningField?: 'reasoning' | 'reasoning_content'
 }
 
 export interface ToolSpec {

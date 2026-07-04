@@ -145,7 +145,33 @@ describe('HttpModel', () => {
         const model = new HttpModel(makeSpec({ baseURL: `http://127.0.0.1:${result.port}` }))
         const response = await model.query(makeRequest())
         expect(response.reasoningContent).toBe('I should scout before firing.')
+        expect(response.reasoningField).toBe('reasoning_content')
         expect(response.assistantText).toBe('I will use a flare.')
+      } finally {
+        await closeServer(result.server)
+      }
+    })
+
+    it('captures Ollama reasoning separately from assistant text', async () => {
+      const result = await createMockServer((_req, res) => {
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({
+          choices: [{
+            message: {
+              role: 'assistant',
+              reasoning: 'The obstacle blocks the direct route.',
+              content: null,
+              tool_calls: null,
+            },
+            finish_reason: 'stop',
+          }],
+        }))
+      })
+      try {
+        const model = new HttpModel(makeSpec({ baseURL: `http://127.0.0.1:${result.port}` }))
+        const response = await model.query(makeRequest())
+        expect(response.reasoningContent).toBe('The obstacle blocks the direct route.')
+        expect(response.reasoningField).toBe('reasoning')
       } finally {
         await closeServer(result.server)
       }
@@ -393,6 +419,49 @@ describe('HttpModel', () => {
   })
 
   describe('request format', () => {
+    it('passes preserved reasoning back on assistant tool-call messages', async () => {
+      let capturedBody: Record<string, unknown> | undefined
+      const result = await createMockServer((req, res) => {
+        let body = ''
+        req.on('data', (chunk) => { body += chunk })
+        req.on('end', () => {
+          capturedBody = JSON.parse(body)
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({
+            choices: [{ message: { role: 'assistant', content: 'ok' }, finish_reason: 'stop' }],
+          }))
+        })
+      })
+      try {
+        const model = new HttpModel(makeSpec({ baseURL: `http://127.0.0.1:${result.port}` }))
+        await model.query(makeRequest({
+          messages: [
+            {
+              role: 'assistant',
+              content: JSON.stringify([{
+                type: 'tool_use', id: 'move-1', name: 'move', input: { direction: 'N', distance: 1 },
+              }]),
+              reasoningContent: 'Move north to gain line of sight.',
+              reasoningField: 'reasoning',
+            },
+            {
+              role: 'assistant',
+              content: 'The route is now clear.',
+              reasoningContent: 'The move succeeded.',
+              reasoningField: 'reasoning_content',
+            },
+          ],
+        }))
+
+        const messages = capturedBody?.messages as Array<Record<string, unknown>>
+        expect(messages[0].reasoning).toBe('Move north to gain line of sight.')
+        expect(messages[0].tool_calls).toHaveLength(1)
+        expect(messages[1].reasoning_content).toBe('The move succeeded.')
+      } finally {
+        await closeServer(result.server)
+      }
+    })
+
     it('sends correct OpenAI format with tools', async () => {
       let capturedBody: unknown
       const result = await createMockServer((req, res) => {

@@ -11,6 +11,8 @@ interface OpenAIMessage {
   tool_calls?: OpenAIToolCall[]
   tool_call_id?: string
   name?: string
+  reasoning?: string
+  reasoning_content?: string
 }
 
 interface OpenAIToolCall {
@@ -36,6 +38,7 @@ interface OpenAIChoice {
     role?: string
     content?: string | null
     reasoning_content?: string | null
+    reasoning?: string | null
     tool_calls?: OpenAIToolCall[]
   }
   finish_reason: string | null
@@ -97,7 +100,7 @@ function redactSecretHeaders(headers: Record<string, string> | undefined): Recor
 }
 
 function buildOpenAIMessages(
-  messages: Array<{ role: string; content: string }>,
+  messages: ModelRequest['messages'],
 ): OpenAIMessage[] {
   const result: OpenAIMessage[] = []
 
@@ -132,11 +135,17 @@ function buildOpenAIMessages(
       result.push({
         role: 'assistant',
         tool_calls: openaiToolCalls,
+        ...(msg.reasoningContent == null
+          ? {}
+          : { [msg.reasoningField ?? 'reasoning_content']: msg.reasoningContent }),
       })
     } else {
       result.push({
         role: msg.role as OpenAIMessage['role'],
         content: msg.content,
+        ...(msg.role !== 'assistant' || msg.reasoningContent == null
+          ? {}
+          : { [msg.reasoningField ?? 'reasoning_content']: msg.reasoningContent }),
       })
     }
   }
@@ -316,10 +325,13 @@ export class HttpModel implements Model {
 
     const message = choice.message
     let assistantText: string | undefined
-    const reasoningContent =
-      typeof message.reasoning_content === 'string' && message.reasoning_content.length > 0
-        ? message.reasoning_content
-        : undefined
+    const reasoningField =
+      typeof message.reasoning === 'string' && message.reasoning.length > 0
+        ? 'reasoning' as const
+        : typeof message.reasoning_content === 'string' && message.reasoning_content.length > 0
+          ? 'reasoning_content' as const
+          : undefined
+    const reasoningContent = reasoningField == null ? undefined : message[reasoningField] ?? undefined
     const toolCalls: NormalizedToolCall[] = []
     let finishReason: string
 
@@ -377,6 +389,7 @@ export class HttpModel implements Model {
     return {
       assistantText,
       reasoningContent,
+      reasoningField,
       toolCalls,
       tokensIn,
       tokensOut,

@@ -177,6 +177,8 @@ export class ModelBackedTankAgent implements TankAgent {
       this.messages.push({
         role: 'assistant',
         content: typeof assistantContent === 'string' ? assistantContent : JSON.stringify(assistantContent),
+        reasoningContent: response.reasoningContent,
+        reasoningField: response.reasoningField,
       })
 
       // 2d. Execute validated calls in order and provide their real outcomes

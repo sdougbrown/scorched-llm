@@ -80,8 +80,26 @@ describe('ModelBackedTankAgent', () => {
       expect(agent.name).toBe('my-tank')
     })
 
+    it('preserves assistant reasoning in recent message history', async () => {
+      const model = new FakeModel([makeResponse({
+        reasoningContent: 'Scout before committing to a shot.',
+        reasoningField: 'reasoning',
+        toolCalls: [{ id: 'flare-1', name: 'fire_flare', arguments: { direction: 'E', range: 3 } }],
+      })])
+      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT, 3)
+
+      await agent.takeTurn(makeWorldView(), TOOLS)
+
+      const assistant = agent.messages.find((message) => message.role === 'assistant')
+      expect(assistant?.reasoningContent).toBe('Scout before committing to a shot.')
+      expect(assistant?.reasoningField).toBe('reasoning')
+    })
+
     it('compacts old turns into deterministic tactical memory', async () => {
-      const model = new FakeModel(Array.from({ length: 8 }, () => makeResponse()))
+      const model = new FakeModel(Array.from({ length: 8 }, (_, index) => makeResponse({
+        reasoningContent: `reasoning-${index + 1}`,
+        reasoningField: 'reasoning',
+      })))
       const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT, 3)
 
       for (let turn = 1; turn <= 8; turn++) {
@@ -103,6 +121,12 @@ describe('ModelBackedTankAgent', () => {
       expect(agent.messages[0].content).toContain('TACTICAL MEMORY')
       expect(agent.messages[0].content).toContain('T1 (19,10) HP2')
       expect(agent.messages[0].content).toContain('T8 (12,10) HP1')
+      const retainedReasoning = agent.messages
+        .map((message) => message.reasoningContent)
+        .filter((reasoning): reasoning is string => reasoning != null)
+      expect(retainedReasoning).toEqual([
+        'reasoning-4', 'reasoning-5', 'reasoning-6', 'reasoning-7', 'reasoning-8',
+      ])
     })
   })
 

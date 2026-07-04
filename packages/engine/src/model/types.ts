@@ -20,6 +20,7 @@ export interface NormalizedToolCall {
 export interface NormalizedModelResponse {
   assistantText?: string
   reasoningContent?: string
+  reasoningField?: 'reasoning' | 'reasoning_content'
   toolCalls: NormalizedToolCall[]
   tokensIn: number
   tokensOut: number
