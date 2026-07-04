@@ -3,6 +3,7 @@ import { z } from 'zod'
 export const ModelSpecSchema = z.object({
   name: z.string(),
   baseURL: z.string().url(),
+  protocol: z.enum(['openai-chat', 'openai-responses', 'anthropic-messages']).optional(),
   apiKeyEnv: z.string().optional(),
   model: z.string(),
   headers: z.record(z.string()).optional(),

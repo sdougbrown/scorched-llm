@@ -207,11 +207,12 @@ A roster is a JSON file with a `players` array. Each player is either model-back
 | Field | Required | Description |
 |-------|----------|-------------|
 | `name` | yes | Display label for the model |
-| `baseURL` | yes | OpenAI-compatible `/chat/completions` endpoint. Anthropic URLs are auto-routed to the native translator. |
+| `baseURL` | yes | Provider base URL. The selected protocol appends its native endpoint path. |
+| `protocol` | no | Explicit wire protocol: `openai-chat`, `openai-responses`, or `anthropic-messages`. If omitted, legacy URL-based routing remains in effect. |
 | `apiKeyEnv` | no | Environment variable name to read the API key from (never a literal key) |
 | `model` | yes | Model ID the endpoint expects (e.g. `gpt-5`, `llama4:70b`) |
 | `headers` | no | Extra HTTP headers (e.g. for proxies) |
-| `extraBody` | no | Provider-specific fields merged into the root OpenAI-compatible request body |
+| `extraBody` | no | Provider-specific fields merged into the root request body |
 | `parameters` | no | `temperature`, `seed`, `maxTokens` |
 | `pricing` | no | `inputPerMillionUsd`, `outputPerMillionUsd` — omit for unknown cost |
 

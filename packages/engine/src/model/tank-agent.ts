@@ -179,6 +179,7 @@ export class ModelBackedTankAgent implements TankAgent {
         content: typeof assistantContent === 'string' ? assistantContent : JSON.stringify(assistantContent),
         reasoningContent: response.reasoningContent,
         reasoningField: response.reasoningField,
+        providerData: response.providerData,
       })
 
       // 2d. Execute validated calls in order and provide their real outcomes

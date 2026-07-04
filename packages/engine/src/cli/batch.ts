@@ -16,9 +16,11 @@ interface RosterPlayer {
   model?: {
     name: string
     baseURL: string
+    protocol?: 'openai-chat' | 'openai-responses' | 'anthropic-messages'
     apiKeyEnv?: string
     model: string
     headers?: Record<string, string>
+    extraBody?: Record<string, unknown>
     parameters?: Record<string, unknown>
     pricing?: { inputPerMillionUsd: number; outputPerMillionUsd: number }
   }

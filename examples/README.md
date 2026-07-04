@@ -104,11 +104,12 @@ Model-backed players use pass-only agents in this mode.
 
 | Field | Purpose |
 |---|---|
-| `baseURL` | Provider base URL. OpenAI-compatible transports append `/chat/completions`. |
+| `baseURL` | Provider base URL. The selected transport appends its native endpoint path. |
+| `protocol` | Optional explicit transport: `openai-chat`, `openai-responses`, or `anthropic-messages`. |
 | `apiKeyEnv` | Environment variable containing the key. Never put a literal key in the config. |
 | `model` | Model identifier expected by the endpoint. |
 | `parameters.maxTokens` | Per-response output limit. `2048` is a practical starting point for local reasoning models. |
-| `extraBody` | Provider-specific root request fields, such as llama.cpp chat-template arguments. |
+| `extraBody` | Provider-specific root request fields, including reasoning controls. |
 | `perTurnTimeoutMs` | Timeout for each model request, not for the complete match. |
 | `maxToolCallsPerTurn` | Protocol/recovery budget; game actions remain limited separately by `actionEconomy`. |
 | `spawnStrategy` | Use `symmetric` for four-player survival or omit it for random open-cell spawning. |

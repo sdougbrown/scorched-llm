@@ -18,6 +18,7 @@ interface AnthropicTool {
 }
 
 interface AnthropicRequestBody {
+  [key: string]: unknown
   model: string
   system?: string
   messages: AnthropicMessage[]
@@ -39,6 +40,8 @@ interface AnthropicContentBlockOut {
   tool_use_id?: string
   content?: string
   text?: string
+  thinking?: string
+  signature?: string
 }
 
 interface AnthropicResponse {
@@ -62,7 +65,7 @@ function isRetryableError(err: unknown): boolean {
   return err instanceof Error && !('status' in err)
 }
 
-function buildAnthropicMessages(messages: Array<{ role: string; content: string }>): {
+function buildAnthropicMessages(messages: ModelRequest['messages']): {
   system?: string
   messages: AnthropicMessage[]
 } {
@@ -73,6 +76,13 @@ function buildAnthropicMessages(messages: Array<{ role: string; content: string 
     if (msg.role === 'system') {
       systemText += msg.content
     } else if (msg.role === 'assistant') {
+      if (Array.isArray(msg.providerData)) {
+        result.push({
+          role: 'assistant',
+          content: msg.providerData as AnthropicContentBlock[],
+        })
+        continue
+      }
       try {
         const parsed = JSON.parse(msg.content)
         if (Array.isArray(parsed) && parsed.every((b: { type: string }) => b.type === 'tool_use')) {
@@ -173,6 +183,7 @@ export class AnthropicModel implements Model {
     const anthropicTools = buildAnthropicTools(request.tools)
 
     const body: AnthropicRequestBody = {
+      ...this.spec.extraBody,
       model: this.spec.model,
       messages: anthropicMessages,
       max_tokens: request.maxTokens ?? this.spec.parameters?.maxTokens ?? 4096,
@@ -276,6 +287,7 @@ export class AnthropicModel implements Model {
     const data: AnthropicResponse = await response.json()
 
     let assistantText: string | undefined
+    const reasoning: string[] = []
     const toolCalls: NormalizedToolCall[] = []
 
     if (data.content != null && Array.isArray(data.content)) {
@@ -292,6 +304,8 @@ export class AnthropicModel implements Model {
             name: block.name ?? '',
             arguments: block.input ?? {},
           })
+        } else if (block.type === 'thinking' && block.thinking != null) {
+          reasoning.push(block.thinking)
         }
       }
     }
@@ -321,12 +335,14 @@ export class AnthropicModel implements Model {
 
     return {
       assistantText,
+      reasoningContent: reasoning.join('\n') || undefined,
       toolCalls,
       tokensIn,
       tokensOut,
       costUsd,
       latencyMs,
       finishReason,
+      providerData: data.content,
       raw: data,
     }
   }

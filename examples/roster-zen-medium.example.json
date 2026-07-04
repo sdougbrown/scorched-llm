@@ -1,0 +1,33 @@
+{
+  "players": [
+    {
+      "label": "GPT-5.5 medium",
+      "model": {
+        "name": "gpt-5.5-medium",
+        "baseURL": "https://opencode.ai/zen",
+        "protocol": "openai-responses",
+        "apiKeyEnv": "OPENCODE_ZEN_API_KEY",
+        "model": "gpt-5.5",
+        "parameters": { "maxTokens": 12288 },
+        "extraBody": {
+          "reasoning": { "effort": "medium", "summary": "auto" },
+          "include": ["reasoning.encrypted_content"]
+        }
+      }
+    },
+    {
+      "label": "Claude Opus 4.8 thinking-8192",
+      "model": {
+        "name": "claude-opus-4-8-thinking-8192",
+        "baseURL": "https://opencode.ai/zen",
+        "protocol": "anthropic-messages",
+        "apiKeyEnv": "OPENCODE_ZEN_API_KEY",
+        "model": "claude-opus-4-8",
+        "parameters": { "maxTokens": 12288 },
+        "extraBody": {
+          "thinking": { "type": "enabled", "budget_tokens": 8192 }
+        }
+      }
+    }
+  ]
+}

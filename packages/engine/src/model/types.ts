@@ -21,6 +21,8 @@ export interface NormalizedModelResponse {
   assistantText?: string
   reasoningContent?: string
   reasoningField?: 'reasoning' | 'reasoning_content'
+  /** Opaque native response items to preserve in assistant message history. */
+  providerData?: unknown
   toolCalls: NormalizedToolCall[]
   tokensIn: number
   tokensOut: number

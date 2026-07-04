@@ -7,6 +7,8 @@ export interface AgentMessage {
   content: string
   reasoningContent?: string
   reasoningField?: 'reasoning' | 'reasoning_content'
+  /** Opaque native response items needed by provider protocols on subsequent calls. */
+  providerData?: unknown
 }
 
 export interface ToolSpec {

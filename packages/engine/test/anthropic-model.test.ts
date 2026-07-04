@@ -121,6 +121,50 @@ describe('AnthropicModel', () => {
   })
 
   describe('request format', () => {
+    it('preserves native thinking blocks and passes provider options', async () => {
+      let capturedBody: Record<string, unknown> | undefined
+      const result = await createMockServer((req, res) => {
+        let body = ''
+        req.on('data', (chunk) => { body += chunk })
+        req.on('end', () => {
+          capturedBody = JSON.parse(body)
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({
+            content: [
+              { type: 'thinking', thinking: 'Use cover.', signature: 'sig-2' },
+              { type: 'text', text: 'Done' },
+            ],
+            stop_reason: 'end_turn',
+            usage: { input_tokens: 10, output_tokens: 5 },
+          }))
+        })
+      })
+      const prior = [
+        { type: 'thinking', thinking: 'Move north.', signature: 'sig-1' },
+        { type: 'tool_use', id: 'tc1', name: 'move', input: { direction: 'N', distance: 1 } },
+      ]
+      try {
+        process.env.ANTHROPIC_API_KEY = 'test-key'
+        const model = new AnthropicModel(makeSpec({
+          baseURL: `http://127.0.0.1:${result.port}`,
+          extraBody: { thinking: { type: 'enabled', budget_tokens: 4096 } },
+        }))
+        const response = await model.query(makeRequest({
+          messages: [{ role: 'assistant', content: '[]', providerData: prior }],
+        }))
+
+        expect(capturedBody?.thinking).toEqual({ type: 'enabled', budget_tokens: 4096 })
+        expect(capturedBody?.messages).toEqual([{ role: 'assistant', content: prior }])
+        expect(response.reasoningContent).toBe('Use cover.')
+        expect(response.providerData).toEqual(expect.arrayContaining([
+          expect.objectContaining({ type: 'thinking', signature: 'sig-2' }),
+        ]))
+      } finally {
+        delete process.env.ANTHROPIC_API_KEY
+        await closeServer(result.server)
+      }
+    })
+
     it('sends system message in top-level system field', async () => {
       let capturedBody: unknown
       const result = await createMockServer((req, res) => {
