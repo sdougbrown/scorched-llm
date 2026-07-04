@@ -24,8 +24,8 @@ function makeConfig(overrides: Partial<MatchConfig>): MatchConfig {
 }
 
 describe('SYSTEM_PROMPT_VERSION', () => {
-  it('is v1', () => {
-    expect(SYSTEM_PROMPT_VERSION).toBe('v1')
+  it('is v2', () => {
+    expect(SYSTEM_PROMPT_VERSION).toBe('v2')
   })
 })
 
@@ -33,6 +33,15 @@ describe('buildSystemPrompt', () => {
   it('contains player label', () => {
     const prompt = buildSystemPrompt(makeConfig(), 'Alpha')
     expect(prompt).toContain('Alpha')
+  })
+
+  it('contains explicit map dimensions and coordinate bounds', () => {
+    const prompt = buildSystemPrompt(makeConfig({
+      map: { ...makeConfig({}).map, width: 25, height: 30 },
+    }), 'Alpha')
+    expect(prompt).toContain('25x30')
+    expect(prompt).toContain('x=0 to 24')
+    expect(prompt).toContain('y=0 to 29')
   })
 
   it('contains action budget for double economy', () => {
@@ -89,10 +98,13 @@ describe('buildSystemPrompt', () => {
   })
 
   it('contains fire_shell tool description', () => {
-    const prompt = buildSystemPrompt(makeConfig(), 'Alpha')
+    const prompt = buildSystemPrompt(makeConfig({
+      shell: { ...makeConfig({}).shell, maxRange: 15 },
+    }), 'Alpha')
     expect(prompt).toContain('fire_shell')
     expect(prompt).toContain('angle')
     expect(prompt).toContain('power')
+    expect(prompt).toContain('1 to 15')
   })
 
   it('explains shell arcs and obstacle cover', () => {

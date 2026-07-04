@@ -88,7 +88,7 @@ describe('runExhibition', () => {
     expect(info.preset).toBe('duel')
     expect(info.rulesVersion).toBe('v1')
     expect(info.generatorVersion).toBe('v1')
-    expect(info.promptVersion).toBe('v1')
+    expect(info.promptVersion).toBe('v2')
     expect(info.engineVersion).toBeDefined()
     expect(info.timestamp).toBeDefined()
     expect(Array.isArray(info.seedSuite)).toBe(true)

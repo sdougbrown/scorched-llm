@@ -18,6 +18,7 @@ import { buildWorldView } from '../worldview/build.js'
 import { computeMatchResult } from '../result/ranking.js'
 import { createTurnRules } from '../rules/turn-rules.js'
 import { ok, invalid as invalidResult } from '../action-result/index.js'
+import { SYSTEM_PROMPT_VERSION } from '../model/system-prompt.js'
 
 export interface MatchRunner {
   state: GameState
@@ -449,7 +450,7 @@ export function restoreFromCheckpoint(
     metadata: {
       matchId: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
-      promptVersion: 'v1',
+      promptVersion: SYSTEM_PROMPT_VERSION,
       adapterVersions: {},
     },
     config,
@@ -493,7 +494,7 @@ export async function runMatch(
     metadata: {
       matchId: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
-      promptVersion: 'v1',
+      promptVersion: SYSTEM_PROMPT_VERSION,
       adapterVersions: {},
     },
     config,

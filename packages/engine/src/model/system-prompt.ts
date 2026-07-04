@@ -1,6 +1,6 @@
 import type { MatchConfig } from '../config/schema.js'
 
-export const SYSTEM_PROMPT_VERSION = 'v1'
+export const SYSTEM_PROMPT_VERSION = 'v2'
 
 export function buildSystemPrompt(config: MatchConfig, label: string): string {
   const actionBudget = config.actionEconomy === 'double' ? 2 : 1
@@ -13,6 +13,9 @@ export function buildSystemPrompt(config: MatchConfig, label: string): string {
   const obstacleHeight = config.map.obstacleHeight
   const shellApexHeight = config.shell.apexHeight
   const tankHeight = config.shell.tankHeight
+  const mapWidth = config.map.width
+  const mapHeight = config.map.height
+  const shellMaxRange = config.shell.maxRange
 
   const backtick = '`'
 
@@ -23,7 +26,8 @@ export function buildSystemPrompt(config: MatchConfig, label: string): string {
     '',
     '## Rules',
     '',
-    `- The battlefield is a top-down 2D grid with integer coordinates. Origin (0,0) is the top-left (northwest) corner.`,
+    `- The battlefield is a ${mapWidth}x${mapHeight} top-down 2D grid with integer coordinates. Origin (0,0) is the top-left (northwest) corner.`,
+    `- Valid coordinates are x=0 to ${mapWidth - 1} and y=0 to ${mapHeight - 1}.`,
     `- You have ${actionBudget} action(s) per turn.`,
     `- Your tank has ${hp} HP. You are destroyed when your HP reaches 0.`,
     `- Your local vision radius is ${localRadius} cells.`,
@@ -51,7 +55,7 @@ export function buildSystemPrompt(config: MatchConfig, label: string): string {
     '',
     `- ${backtick}fire_shell${backtick}: Fire a shell at an enemy. Damage is calculated based on angle and power.`,
     `  - ${backtick}angle${backtick}: Number in degrees, clockwise from north (0=N, 90=E, 180=S, 270=W).`,
-    `  - ${backtick}power${backtick}: Number representing range in cells.`,
+    `  - ${backtick}power${backtick}: Number representing range in cells (1 to ${shellMaxRange}).`,
     '',
     `- ${backtick}pass${backtick}: Skip your turn.`,
     `- ${backtick}look${backtick}: Refresh your local scan (no action cost).`,

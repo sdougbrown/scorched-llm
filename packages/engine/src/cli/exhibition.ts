@@ -7,6 +7,7 @@ import { createAggressiveAgent, createConservativeAgent } from '../match/scripte
 import { runMatch } from '../match/orchestration.js'
 import { alwaysPassAgent } from '../match/fake-agents.js'
 import { aggregateLogs } from './aggregate.js'
+import { SYSTEM_PROMPT_VERSION } from '../model/system-prompt.js'
 
 interface RosterPlayer {
   label: string
@@ -263,7 +264,7 @@ export async function runExhibition(argv: string[]): Promise<void> {
     preset: presetName,
     rulesVersion: 'v1',
     generatorVersion: 'v1',
-    promptVersion: 'v1',
+    promptVersion: SYSTEM_PROMPT_VERSION,
     engineVersion: VERSION,
     timestamp: new Date().toISOString(),
     seedSuite: [...SEED_SUITE],
