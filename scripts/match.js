@@ -10,7 +10,7 @@ const HELP = `Run Scorched LLM matches
 
 Usage:
   yarn match --config <match.json> --out <result.json> [--live] [--serve <port>]
-  yarn match batch --roster <roster.json> --preset <duel|blitz|survival> --out <dir> [--seeds <n>] [--live] [--serve <port>]
+  yarn match batch --roster <roster.json> --preset <duel|blitz|survival> --out <dir> [--seeds <n>] [--shell-max-range <n>] [--live] [--serve <port>]
   yarn match exhibition --preset <duel|blitz|survival> --out <dir>
   yarn match aggregate --out <dir>
   yarn match replay --dir <match-log-directory> [--serve <port>]

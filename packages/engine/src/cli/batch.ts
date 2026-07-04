@@ -106,6 +106,7 @@ export async function runBatch(argv: string[], hooks: CliRunHooks = {}): Promise
   let presetName: string | undefined
   let outDir: string | undefined
   let seedsCount: number | undefined
+  let shellMaxRange: number | undefined
   let live = false
 
   for (let i = 0; i < argv.length; i++) {
@@ -117,6 +118,8 @@ export async function runBatch(argv: string[], hooks: CliRunHooks = {}): Promise
       outDir = resolve(argv[++i])
     } else if (argv[i] === '--seeds' && argv[i + 1]) {
       seedsCount = parseInt(argv[++i], 10)
+    } else if (argv[i] === '--shell-max-range' && argv[i + 1]) {
+      shellMaxRange = parseInt(argv[++i], 10)
     } else if (argv[i] === '--live') {
       live = true
     }
@@ -132,6 +135,10 @@ export async function runBatch(argv: string[], hooks: CliRunHooks = {}): Promise
   }
   if (!outDir) {
     console.error('Error: --out is required')
+    process.exit(1)
+  }
+  if (shellMaxRange !== undefined && (!Number.isInteger(shellMaxRange) || shellMaxRange < 1)) {
+    console.error('Error: --shell-max-range must be a positive integer')
     process.exit(1)
   }
 
@@ -189,7 +196,10 @@ export async function runBatch(argv: string[], hooks: CliRunHooks = {}): Promise
     const seatAssignment = buildSeatAssignment(entry.players)
 
     const playerSpecs: PlayerSpec[] = entry.players.map(rosterToPlayerSpec)
-    const config = PRESETS[preset](entry.seed, playerSpecs)
+    const presetConfig = PRESETS[preset](entry.seed, playerSpecs)
+    const config = shellMaxRange === undefined
+      ? presetConfig
+      : { ...presetConfig, shell: { ...presetConfig.shell, maxRange: shellMaxRange } }
 
     const agents = entry.players.map((p, i) => {
       const tankId = `tank-${i}`

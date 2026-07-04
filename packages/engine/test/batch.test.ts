@@ -148,6 +148,29 @@ describe('runBatch', () => {
       entry.seatAssignment['0'])).toEqual(['p1', 'p2', 'p3', 'p4'])
   })
 
+  it('overrides the preset shell range when requested', async () => {
+    const rosterPath = join(tmpDir, 'roster.json')
+    const outDir = join(tmpDir, 'output')
+
+    writeFileSync(rosterPath, createRoster([
+      { label: 'p1', scripted: 'aggressive' as const },
+      { label: 'p2', scripted: 'conservative' as const },
+      { label: 'p3', scripted: 'aggressive' as const },
+      { label: 'p4', scripted: 'conservative' as const },
+    ]))
+
+    await runBatch([
+      '--roster', rosterPath,
+      '--preset', 'survival',
+      '--out', outDir,
+      '--seeds', '1',
+      '--shell-max-range', '15',
+    ])
+
+    const log = JSON.parse(readFileSync(join(outDir, 'match-001.json'), 'utf-8'))
+    expect(log.config.shell.maxRange).toBe(15)
+  })
+
   it('seat assignment reflects roster label in each seat', async () => {
     const rosterPath = join(tmpDir, 'roster.json')
     const outDir = join(tmpDir, 'output')

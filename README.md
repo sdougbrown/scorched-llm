@@ -264,11 +264,13 @@ yarn match batch \
   --preset <duel|blitz|survival> \
   --out <output-dir> \
   [--seeds <count>] \
+  [--shell-max-range <count>] \
   [--live] \
   [--serve <port>]
 ```
 
 - `--seeds <count>` — use the first N seeds from the 20-seed committed suite (default 5)
+- `--shell-max-range <count>` — override the preset's maximum legal shell power
 - `--live` — use real model agents. Without it, model players use always-pass (deterministic dry-run, no API calls)
 - `--serve <port>` — continuously serve the active match at `/match.json`.
   The spectator follows match boundaries and stops only when the full batch is
@@ -277,12 +279,11 @@ yarn match batch \
 To start a 20-match live survival batch for any four-model roster:
 
 ```bash
-./scripts/run-survival-eval.sh roster-survival.local.json
+./scripts/run-survival-eval.sh --roster roster-survival.local.json
 ```
 
 The script writes to `exhibitions/survival-20` and serves the live feed on port
-`3030`. Pass a second positional argument to change the output directory, or
-set `PORT` to change the port.
+`3030`. Use `--out`, `--shell-max-range`, or `--port` to override those values.
 
 ### Match count
 
