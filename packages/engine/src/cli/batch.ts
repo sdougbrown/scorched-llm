@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { type PlayerSpec } from '../config/schema.js'
 import { DEFAULT_SEED_COUNT, PRESETS, SEED_SUITE, type PresetName } from '../config/presets.js'
@@ -24,6 +24,13 @@ interface RosterPlayer {
     parameters?: Record<string, unknown>
     pricing?: { inputPerMillionUsd: number; outputPerMillionUsd: number }
   }
+}
+
+function writeManifestCheckpoint(outDir: string, manifest: BatchEntry[]): void {
+  const manifestPath = `${outDir}/batch-manifest.json`
+  const temporaryPath = `${manifestPath}.tmp`
+  writeFileSync(temporaryPath, JSON.stringify(manifest, null, 2))
+  renameSync(temporaryPath, manifestPath)
 }
 
 interface RosterFile {
@@ -190,6 +197,7 @@ export async function runBatch(argv: string[], hooks: CliRunHooks = {}): Promise
   mkdirSync(outDir, { recursive: true })
 
   const manifest: BatchEntry[] = []
+  writeManifestCheckpoint(outDir, manifest)
   let completed = 0
 
   for (let m = 0; m < total; m++) {
@@ -279,8 +287,9 @@ export async function runBatch(argv: string[], hooks: CliRunHooks = {}): Promise
         failure: failureMsg,
       })
     }
+    writeManifestCheckpoint(outDir, manifest)
   }
 
-  writeFileSync(`${outDir}/batch-manifest.json`, JSON.stringify(manifest, null, 2))
+  writeManifestCheckpoint(outDir, manifest)
   console.log(`Batch complete: ${completed}/${total} matches in ${outDir}`)
 }
