@@ -276,6 +276,7 @@ interface AppState {
   errorEl: HTMLElement | null
   posIndex: number
   resizeHandler: (() => void) | null
+  resizeObserver: ResizeObserver | null
   liveBadgeEl: HTMLElement | null
   liveStopBtn: HTMLButtonElement | null
   headerInfoEl: HTMLElement | null
@@ -306,6 +307,7 @@ function buildApp(): AppState {
     errorEl: null,
     posIndex: 0,
     resizeHandler: null,
+    resizeObserver: null,
     liveBadgeEl: null,
     liveStopBtn: null,
     headerInfoEl: null,
@@ -501,6 +503,8 @@ function onLoadMatch(
   if (state.resizeHandler) {
     window.removeEventListener('resize', state.resizeHandler)
   }
+  state.resizeObserver?.disconnect()
+  state.resizeObserver = null
 
   // Create scheduler
   const scheduler = new AnimationScheduler()
@@ -515,7 +519,9 @@ function onLoadMatch(
   const renderer = createArenaRenderer(ctx.canvas)
   state.renderer = renderer
 
-  // Resize handler
+  // Resize handling — the observer catches container reshapes (e.g. stats
+  // panel toggling) that never fire a window resize event. setSize repaints
+  // the current frame itself, so no explicit re-render is needed here.
   function onResize(): void {
     const rect = ctx.arenaContainer.getBoundingClientRect()
     renderer.setSize(rect.width, rect.height)
@@ -523,6 +529,11 @@ function onLoadMatch(
   onResize()
   window.addEventListener('resize', onResize)
   state.resizeHandler = onResize
+  if (typeof ResizeObserver !== 'undefined') {
+    const observer = new ResizeObserver(onResize)
+    observer.observe(ctx.arenaContainer)
+    state.resizeObserver = observer
+  }
 
   // Start scheduler
   scheduler.play(

@@ -164,7 +164,9 @@ describe('createArenaRenderer', () => {
     expect(canvas._mockCtx.fillText).toHaveBeenCalledWith(
       'B', expect.any(Number), expect.any(Number),
     )
-    expect(canvas._mockCtx.save).not.toHaveBeenCalled()
+    expect(canvas._mockCtx.fillText).not.toHaveBeenCalledWith(
+      'B DESTROYED', expect.any(Number), expect.any(Number),
+    )
   })
 
   it('renders with flares', () => {
