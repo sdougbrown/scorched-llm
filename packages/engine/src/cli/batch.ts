@@ -15,6 +15,7 @@ import { createGpt55Agent } from '../match/gpt-5.5-agent.js'
 import { createGeminiAgent } from '../match/gemini-agent.js'
 import { createKimiAgent } from '../match/kimi-agent.js'
 import { createMinimaxAgent } from '../match/minimax-agent.js'
+import { createGemmaAgent } from '../match/gemma-agent.js'
 import { runMatch } from '../match/orchestration.js'
 import { createModel } from '../model/factory.js'
 import { ModelBackedTankAgent } from '../model/tank-agent.js'
@@ -254,6 +255,8 @@ export async function runBatch(argv: string[], hooks: CliRunHooks = {}): Promise
             mapHeight: config.map.height,
           })
           case 'minimax': return createMinimaxAgent(tankId)
+        case 'gemma': return createGemmaAgent(tankId)
+          case 'gemma': return createGemmaAgent(tankId)
           default: return createConservativeAgent(tankId)
         }
       }

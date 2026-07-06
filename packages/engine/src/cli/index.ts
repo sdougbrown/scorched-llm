@@ -19,6 +19,7 @@ import { createGpt55Agent } from '../match/gpt-5.5-agent.js'
 import { createGeminiAgent } from '../match/gemini-agent.js'
 import { createKimiAgent } from '../match/kimi-agent.js'
 import { createMinimaxAgent } from '../match/minimax-agent.js'
+import { createGemmaAgent } from '../match/gemma-agent.js'
 import { runBatch } from './batch.js'
 import { runAggregate } from './aggregate.js'
 import { runExhibition } from './exhibition.js'
@@ -148,6 +149,8 @@ export async function runCli(argv: string[], hooks: CliRunHooks = {}): Promise<v
           return createGeminiAgent(p.label)
         } else if (p.scripted === 'minimax') {
           return createMinimaxAgent(p.label)
+        } else if (p.scripted === 'gemma') {
+          return createGemmaAgent(p.label)
         } else {
           return createConservativeAgent(p.label)
         }
