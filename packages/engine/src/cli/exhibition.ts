@@ -9,6 +9,7 @@ import { createQwen27BAgent } from '../match/qwen-agent.js'
 import { createAggressiveAgent, createConservativeAgent, createDeepSeekAgent } from '../match/scripted-agents.js'
 import { createHaikuAgent } from '../match/haiku-agent.js'
 import { createSonnetAgent } from '../match/sonnet-agent.js'
+import { createOpusAgent, opusOptionsFromConfig } from '../match/opus-agent.js'
 import { runMatch } from '../match/orchestration.js'
 import { alwaysPassAgent } from '../match/fake-agents.js'
 import { aggregateLogs } from './aggregate.js'
@@ -16,7 +17,7 @@ import { SYSTEM_PROMPT_VERSION } from '../model/system-prompt.js'
 
 interface RosterPlayer {
   label: string
-  scripted: 'aggressive' | 'conservative' | 'fable' | 'glm' | 'deepseek' | 'qwen-27b' | 'haiku' | 'sonnet'
+  scripted: 'aggressive' | 'conservative' | 'fable' | 'glm' | 'deepseek' | 'qwen-27b' | 'haiku' | 'sonnet' | 'opus'
 }
 
 interface BatchEntry {
@@ -201,6 +202,9 @@ export async function runExhibition(argv: string[]): Promise<void> {
         })
       } else if (p.scripted === 'sonnet') {
         return createSonnetAgent(tankId, config)
+      }
+      if (p.scripted === 'opus') {
+        return createOpusAgent(tankId, opusOptionsFromConfig(config))
       }
       return createConservativeAgent(tankId)
     })

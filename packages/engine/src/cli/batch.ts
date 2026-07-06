@@ -9,6 +9,7 @@ import { createQwen27BAgent } from '../match/qwen-agent.js'
 import { createAggressiveAgent, createConservativeAgent, createDeepSeekAgent } from '../match/scripted-agents.js'
 import { createHaikuAgent } from '../match/haiku-agent.js'
 import { createSonnetAgent } from '../match/sonnet-agent.js'
+import { createOpusAgent, opusOptionsFromConfig } from '../match/opus-agent.js'
 import { runMatch } from '../match/orchestration.js'
 import { createModel } from '../model/factory.js'
 import { ModelBackedTankAgent } from '../model/tank-agent.js'
@@ -17,7 +18,7 @@ import type { CliRunHooks } from './hooks.js'
 
 interface RosterPlayer {
   label: string
-  scripted?: 'aggressive' | 'conservative' | 'fable' | 'glm' | 'deepseek' | 'qwen-27b' | 'haiku' | 'sonnet'
+  scripted?: 'aggressive' | 'conservative' | 'fable' | 'glm' | 'deepseek' | 'qwen-27b' | 'haiku' | 'sonnet' | 'opus'
   model?: {
     name: string
     baseURL: string
@@ -242,6 +243,9 @@ export async function runBatch(argv: string[], hooks: CliRunHooks = {}): Promise
           })
         } else if (p.scripted === 'sonnet') {
           return createSonnetAgent(tankId, config)
+        }
+        if (p.scripted === 'opus') {
+          return createOpusAgent(tankId, opusOptionsFromConfig(config))
         }
         return createConservativeAgent(tankId)
       }
