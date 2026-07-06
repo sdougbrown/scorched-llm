@@ -7,9 +7,9 @@ import { runMatch } from '../match/orchestration.js'
 import { createModel } from '../model/factory.js'
 import { ModelBackedTankAgent } from '../model/tank-agent.js'
 import { buildSystemPrompt } from '../model/system-prompt.js'
-import { createAggressiveAgent, createConservativeAgent } from '../match/scripted-agents.js'
 import { createFableAgent } from '../match/fable-agent.js'
 import { createGlmAgent } from '../match/glm-agent.js'
+import { createAggressiveAgent, createConservativeAgent, createDeepSeekAgent } from '../match/scripted-agents.js'
 import { runBatch } from './batch.js'
 import { runAggregate } from './aggregate.js'
 import { runExhibition } from './exhibition.js'
@@ -109,6 +109,8 @@ export async function runCli(argv: string[], hooks: CliRunHooks = {}): Promise<v
             mapWidth: config.map.width,
             mapHeight: config.map.height,
           })
+        } else if (p.scripted === 'deepseek') {
+          return createDeepSeekAgent(p.label)
         } else {
           return createConservativeAgent(p.label)
         }
