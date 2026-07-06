@@ -23,6 +23,8 @@ import { createSonnet46Agent } from '../match/sonnet-4.6-agent.js'
 import { createDeepSeekProAgent } from '../match/deepseek-pro-agent.js'
 import { createOpus46Agent } from '../match/opus-4.6-agent.js'
 import { createMimoAgent } from '../match/mimo-agent.js'
+import { createStepAgent } from '../match/step-agent.js'
+
 import { runMatch } from '../match/orchestration.js'
 import { alwaysPassAgent } from '../match/fake-agents.js'
 import { aggregateLogs } from './aggregate.js'
@@ -31,6 +33,17 @@ import { SYSTEM_PROMPT_VERSION } from '../model/system-prompt.js'
 interface RosterPlayer {
   label: string
   scripted: ScriptedAgentKind
+  model?: {
+    name: string
+    baseURL: string
+    protocol?: string
+    apiKeyEnv?: string
+    model: string
+    headers?: Record<string, string>
+    extraBody?: Record<string, unknown>
+    parameters?: Record<string, unknown>
+    pricing?: { inputPerMillionUsd: number; outputPerMillionUsd: number }
+  }
 }
 
 interface BatchEntry {
@@ -231,9 +244,9 @@ export async function runExhibition(argv: string[]): Promise<void> {
         case 'fable-fresh': return createFableFreshAgent(tankId, config)
         case 'nemotron': return createNemotronAgent(tankId)
         case 'mimo': return createMimoAgent(tankId)
+        case 'step': return createStepAgent(tankId)
         default: return createConservativeAgent(tankId)
       }
-      return createConservativeAgent(tankId)
     })
 
     const progressLabels = entry.players.map((p) => p.label).join(' vs ')

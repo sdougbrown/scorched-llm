@@ -27,6 +27,7 @@ import { createSonnet46Agent } from '../match/sonnet-4.6-agent.js'
 import { createDeepSeekProAgent } from '../match/deepseek-pro-agent.js'
 import { createOpus46Agent } from '../match/opus-4.6-agent.js'
 import { createMimoAgent } from '../match/mimo-agent.js'
+import { createStepAgent } from '../match/step-agent.js'
 import { runBatch } from './batch.js'
 import { runAggregate } from './aggregate.js'
 import { runExhibition } from './exhibition.js'
@@ -114,7 +115,7 @@ export async function runCli(argv: string[], hooks: CliRunHooks = {}): Promise<v
         })
         const systemPrompt = buildSystemPrompt(config, p.label)
         return new ModelBackedTankAgent(p.label, model, systemPrompt, config.maxToolCallsPerTurn)
-      } else if (p.scripted) {
+      } else       if (p.scripted) {
         if (p.scripted === 'aggressive') {
           return createAggressiveAgent(p.label)
         } else if (p.scripted === 'fable') {
@@ -173,8 +174,14 @@ export async function runCli(argv: string[], hooks: CliRunHooks = {}): Promise<v
         } else if (p.scripted === 'mimo') {
           return createMimoAgent(p.label)
         } else {
+        }
+        if (p.scripted === 'conservative') {
           return createConservativeAgent(p.label)
         }
+        if (p.scripted === 'step') {
+          return createStepAgent(p.label)
+        }
+        throw new Error(`Unknown scripted type: ${p.scripted}`)
       }
     }
     return alwaysPassAgent(p.label)
