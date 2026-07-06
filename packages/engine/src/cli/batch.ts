@@ -19,6 +19,7 @@ import { createGemmaAgent } from '../match/gemma-agent.js'
 import { createFableFreshAgent } from '../match/fable-fresh-agent.js'
 import { createSonnet5bAgent } from '../match/sonnet-5b-agent.js'
 import { createNemotronAgent } from '../match/nemotron-agent.js'
+import { createSonnet46Agent } from '../match/sonnet-4.6-agent.js'
 import { runMatch } from '../match/orchestration.js'
 import { createModel } from '../model/factory.js'
 import { ModelBackedTankAgent } from '../model/tank-agent.js'
@@ -258,20 +259,11 @@ export async function runBatch(argv: string[], hooks: CliRunHooks = {}): Promise
             mapHeight: config.map.height,
           })
           case 'minimax': return createMinimaxAgent(tankId)
-        case 'gemma': return createGemmaAgent(tankId)
-        case 'fable-fresh': return createFableFreshAgent(tankId, config)
-        case 'sonnet-5b': return createSonnet5bAgent(tankId)
-        case 'nemotron': return createNemotronAgent(tankId)
           case 'gemma': return createGemmaAgent(tankId)
-        case 'fable-fresh': return createFableFreshAgent(tankId, config)
-        case 'sonnet-5b': return createSonnet5bAgent(tankId)
-        case 'nemotron': return createNemotronAgent(tankId)
           case 'fable-fresh': return createFableFreshAgent(tankId, config)
-        case 'sonnet-5b': return createSonnet5bAgent(tankId)
-        case 'nemotron': return createNemotronAgent(tankId)
           case 'sonnet-5b': return createSonnet5bAgent(tankId)
-        case 'nemotron': return createNemotronAgent(tankId)
           case 'nemotron': return createNemotronAgent(tankId)
+          case 'sonnet-4.6': return createSonnet46Agent(tankId)
           default: return createConservativeAgent(tankId)
         }
       }

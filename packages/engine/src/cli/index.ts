@@ -23,6 +23,7 @@ import { createMinimaxAgent } from '../match/minimax-agent.js'
 import { createGemmaAgent } from '../match/gemma-agent.js'
 import { createFableFreshAgent } from '../match/fable-fresh-agent.js'
 import { createSonnet5bAgent } from '../match/sonnet-5b-agent.js'
+import { createSonnet46Agent } from '../match/sonnet-4.6-agent.js'
 import { runBatch } from './batch.js'
 import { runAggregate } from './aggregate.js'
 import { runExhibition } from './exhibition.js'
@@ -160,6 +161,8 @@ export async function runCli(argv: string[], hooks: CliRunHooks = {}): Promise<v
           return createSonnet5bAgent(p.label)
         } else if (p.scripted === 'nemotron') {
           return createNemotronAgent(p.label)
+        } else if (p.scripted === 'sonnet-4.6') {
+          return createSonnet46Agent(p.label)
         } else {
           return createConservativeAgent(p.label)
         }

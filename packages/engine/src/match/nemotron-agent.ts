@@ -547,7 +547,7 @@ export function createNemotronAgent(
       // === PRIORITY 3: MOVEMENT ===
       if (remainingActions > 0 && calls.filter(c => c.tool.kind === 'move').length === 0) {
         let moveDir: Direction
-        let moveDist = 1
+        const moveDist = 1
 
         if (memory.lastKnownEnemyPos) {
           const distToEnemy = euclidean(myPos, memory.lastKnownEnemyPos)
