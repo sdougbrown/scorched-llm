@@ -3,6 +3,7 @@ import {
   createAggressiveAgent,
   createConservativeAgent,
 } from '../src/match/scripted-agents.js'
+import { createGpt55Agent } from '../src/match/gpt-5.5-agent.js'
 import type { WorldView } from '../src/types/events.js'
 import type { ToolCall } from '../src/types/tool.js'
 import type { Coordinate } from '../src/types/coords.js'
@@ -39,6 +40,21 @@ function firstMoveCall(calls: ToolCall[]): ToolCall | undefined {
 
 function firstFlareCall(calls: ToolCall[]): ToolCall | undefined {
   return calls.find((c) => c.tool.kind === 'fire_flare')
+}
+
+function openScanAround(center: Coordinate, radius: number): WorldView['localScan'] {
+  const cells: WorldView['localScan'] = []
+  for (let y = center.y - radius; y <= center.y + radius; y++) {
+    for (let x = center.x - radius; x <= center.x + radius; x++) {
+      if (x < 0 || y < 0) continue
+      cells.push({
+        coord: { x, y },
+        terrain: 'open',
+        obstacleHeight: 0,
+      })
+    }
+  }
+  return cells
 }
 
 
@@ -282,5 +298,56 @@ describe('memory persistence', () => {
     )
     // Consistent: still has memory, just different toggle state
     expect(calls2.length).toBeGreaterThan(0)
+  })
+})
+
+describe('Gpt55Agent', () => {
+  it('has correct name', () => {
+    const agent = createGpt55Agent('tank-0')
+    expect(agent.name).toBe('gpt-5.5-tank-0')
+  })
+
+  it('fires an exact shell at the lowest-hp visible enemy', async () => {
+    const agent = createGpt55Agent('tank-0')
+    const calls = await agent.takeTurn(
+      makeWorldView({
+        position: { x: 5, y: 5 },
+        localScan: openScanAround({ x: 5, y: 5 }, 3),
+        visibleEnemies: [
+          { id: 'tank-1', position: { x: 9, y: 5 }, hp: 2 },
+          { id: 'tank-2', position: { x: 5, y: 2 }, hp: 1 },
+        ],
+        aliveEnemyCount: 2,
+      }),
+      [],
+    )
+
+    const shellCall = firstShellCall(calls)
+    expect(shellCall).toBeDefined()
+    expect(shellCall!.tool.kind).toBe('fire_shell')
+    if (shellCall!.tool.kind === 'fire_shell') {
+      expect(shellCall!.tool.angle).toBeCloseTo(0)
+      expect(shellCall!.tool.power).toBeCloseTo(3)
+    }
+  })
+
+  it('uses a valid blind flare when no enemy is visible', async () => {
+    const agent = createGpt55Agent('tank-0')
+    const calls = await agent.takeTurn(
+      makeWorldView({
+        position: { x: 0, y: 0 },
+        localScan: openScanAround({ x: 0, y: 0 }, 1),
+        visibleEnemies: [],
+      }),
+      [],
+    )
+
+    const flareCall = firstFlareCall(calls)
+    expect(flareCall).toBeDefined()
+    expect(flareCall!.tool.kind).toBe('fire_flare')
+    if (flareCall!.tool.kind === 'fire_flare') {
+      expect(flareCall!.tool.direction).toBe('SE')
+      expect(flareCall!.tool.range).toBe(1)
+    }
   })
 })

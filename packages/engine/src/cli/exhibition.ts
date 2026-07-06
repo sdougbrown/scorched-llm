@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync, readdirSync } from 'node:fs'
 import { resolve, join } from 'node:path'
-import { type PlayerSpec } from '../config/schema.js'
+import { type PlayerSpec, type ScriptedAgentKind } from '../config/schema.js'
 import { DEFAULT_SEED_COUNT, PRESETS, SEED_SUITE, type PresetName } from '../config/presets.js'
 import { VERSION } from '../index.js'
 import { createFableAgent } from '../match/fable-agent.js'
@@ -11,6 +11,7 @@ import { createHaikuAgent } from '../match/haiku-agent.js'
 import { createSonnetAgent } from '../match/sonnet-agent.js'
 import { createOpusAgent, opusOptionsFromConfig } from '../match/opus-agent.js'
 import { createGpt54Agent } from '../match/gpt-5.4-agent.js'
+import { createGpt55Agent } from '../match/gpt-5.5-agent.js'
 import { runMatch } from '../match/orchestration.js'
 import { alwaysPassAgent } from '../match/fake-agents.js'
 import { aggregateLogs } from './aggregate.js'
@@ -18,7 +19,7 @@ import { SYSTEM_PROMPT_VERSION } from '../model/system-prompt.js'
 
 interface RosterPlayer {
   label: string
-  scripted: 'aggressive' | 'conservative' | 'fable' | 'glm' | 'deepseek' | 'qwen-27b' | 'haiku' | 'sonnet' | 'opus' | 'gpt-5.4'
+  scripted: ScriptedAgentKind
 }
 
 interface BatchEntry {
@@ -180,42 +181,29 @@ export async function runExhibition(argv: string[]): Promise<void> {
 
     const agents = entry.players.map((p, i) => {
       const tankId = `tank-${i}`
-      if (p.scripted === 'aggressive') {
-        return createAggressiveAgent(tankId)
-      } else if (p.scripted === 'haiku') {
-        return createHaikuAgent(tankId)
-      }
-      if (p.scripted === 'qwen-27b') {
-        return createQwen27BAgent(tankId)
-      }
-      if (p.scripted === 'deepseek') {
-        return createDeepSeekAgent(tankId)
-      }
-      if (p.scripted === 'fable') {
-        return createFableAgent(tankId, config)
-      }
-      if (p.scripted === 'glm') {
-        return createGlmAgent(tankId, {
+      switch (p.scripted) {
+        case 'aggressive': return createAggressiveAgent(tankId)
+        case 'fable': return createFableAgent(tankId, config)
+        case 'glm': return createGlmAgent(tankId, {
           shellMaxRange: config.shell.maxRange,
           moveMax: config.moveMax ?? config.fog.flareRadius,
           mapWidth: config.map.width,
           mapHeight: config.map.height,
         })
-      } else if (p.scripted === 'sonnet') {
-        return createSonnetAgent(tankId, config)
+        case 'deepseek': return createDeepSeekAgent(tankId)
+        case 'qwen-27b': return createQwen27BAgent(tankId)
+        case 'haiku': return createHaikuAgent(tankId)
+        case 'sonnet': return createSonnetAgent(tankId, config)
+        case 'opus': return createOpusAgent(tankId, opusOptionsFromConfig(config))
+        case 'gpt-5.4': return createGpt54Agent(tankId, {
+          shellMaxRange: config.shell.maxRange,
+          moveMax: config.moveMax ?? config.fog.flareRadius,
+          flareMaxRange: config.fog.flareRadius,
+          flareRadius: config.fog.flareRadius,
+        })
+        case 'gpt-5.5': return createGpt55Agent(tankId)
+        default: return createConservativeAgent(tankId)
       }
-      if (p.scripted === 'opus') {
-        return createOpusAgent(tankId, opusOptionsFromConfig(config))
-      }
-      if (p.scripted === 'conservative') {
-        return createConservativeAgent(tankId)
-      }
-      return createGpt54Agent(tankId, {
-        shellMaxRange: config.shell.maxRange,
-        moveMax: config.moveMax ?? config.fog.flareRadius,
-        flareMaxRange: config.fog.flareRadius,
-        flareRadius: config.fog.flareRadius,
-      })
     })
 
     const progressLabels = entry.players.map((p) => p.label).join(' vs ')

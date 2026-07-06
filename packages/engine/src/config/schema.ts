@@ -20,6 +20,9 @@ export const ModelSpecSchema = z.object({
 })
 export type ModelSpec = z.infer<typeof ModelSpecSchema>
 
+export const ScriptedAgentSchema = z.enum(['aggressive', 'conservative', 'fable', 'glm', 'deepseek', 'qwen-27b', 'haiku', 'sonnet', 'opus', 'gpt-5.4', 'gpt-5.5'])
+export type ScriptedAgentKind = z.infer<typeof ScriptedAgentSchema>
+
 export const PlayerSpecSchema = z.object({
   label: z.string(),
   startPosition: z.union([
@@ -27,7 +30,7 @@ export const PlayerSpecSchema = z.object({
     z.literal('random'),
   ]),
   model: ModelSpecSchema.optional(),
-  scripted: z.enum(['aggressive', 'conservative', 'fable', 'glm', 'deepseek', 'qwen-27b', 'haiku', 'sonnet', 'opus', 'gpt-5.4']).optional(),
+  scripted: ScriptedAgentSchema.optional(),
 }).refine(
   (data) => (data.model !== undefined) !== (data.scripted !== undefined),
   { message: 'PlayerSpec must have exactly one of: model, scripted' }
