@@ -16,3 +16,5 @@ export * from './worldview/build.js'
 export * from './result/ranking.js'
 export * from './match/fake-agents.js'
 export * from './match/orchestration.js'
+export * from './match/gemini-agent.js'
+
