@@ -23,3 +23,4 @@ export * from './match/gpt-5.4-agent.js'
 export * from './match/gpt-5.5-agent.js'
 export * from './match/gemini-agent.js'
 
+export * from './match/nemotron-agent.js'

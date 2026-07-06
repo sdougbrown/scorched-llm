@@ -11,6 +11,7 @@ import { createFableAgent } from '../match/fable-agent.js'
 import { createGlmAgent } from '../match/glm-agent.js'
 import { createQwen27BAgent } from '../match/qwen-agent.js'
 import { createAggressiveAgent, createConservativeAgent, createDeepSeekAgent } from '../match/scripted-agents.js'
+import { createNemotronAgent } from '../match/nemotron-agent.js'
 import { createHaikuAgent } from '../match/haiku-agent.js'
 import { createSonnetAgent } from '../match/sonnet-agent.js'
 import { createOpusAgent, opusOptionsFromConfig } from '../match/opus-agent.js'
@@ -157,6 +158,8 @@ export async function runCli(argv: string[], hooks: CliRunHooks = {}): Promise<v
           return createFableFreshAgent(p.label, config)
         } else if (p.scripted === 'sonnet-5b') {
           return createSonnet5bAgent(p.label)
+        } else if (p.scripted === 'nemotron') {
+          return createNemotronAgent(p.label)
         } else {
           return createConservativeAgent(p.label)
         }

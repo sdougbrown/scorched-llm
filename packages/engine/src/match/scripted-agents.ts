@@ -666,3 +666,4 @@ export function createDeepSeekAgent(
     },
   }
 }
+export { createNemotronAgent } from './nemotron-agent.js'

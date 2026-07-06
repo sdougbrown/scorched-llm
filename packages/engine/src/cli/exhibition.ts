@@ -18,6 +18,7 @@ import { createMinimaxAgent } from '../match/minimax-agent.js'
 import { createGemmaAgent } from '../match/gemma-agent.js'
 import { createFableFreshAgent } from '../match/fable-fresh-agent.js'
 import { createSonnet5bAgent } from '../match/sonnet-5b-agent.js'
+import { createNemotronAgent } from '../match/nemotron-agent.js'
 import { runMatch } from '../match/orchestration.js'
 import { alwaysPassAgent } from '../match/fake-agents.js'
 import { aggregateLogs } from './aggregate.js'
@@ -221,6 +222,7 @@ export async function runExhibition(argv: string[]): Promise<void> {
         case 'gemma': return createGemmaAgent(tankId)
         case 'fable-fresh': return createFableFreshAgent(tankId, config)
         case 'sonnet-5b': return createSonnet5bAgent(tankId)
+        case 'nemotron': return createNemotronAgent(tankId)
         default: return createConservativeAgent(tankId)
       }
       if (p.scripted === 'kimi') {
