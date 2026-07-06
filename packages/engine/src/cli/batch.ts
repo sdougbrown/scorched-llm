@@ -5,6 +5,7 @@ import { DEFAULT_SEED_COUNT, PRESETS, SEED_SUITE, type PresetName } from '../con
 import { alwaysPassAgent } from '../match/fake-agents.js'
 import { createAggressiveAgent, createConservativeAgent } from '../match/scripted-agents.js'
 import { createFableAgent } from '../match/fable-agent.js'
+import { createGlmAgent } from '../match/glm-agent.js'
 import { runMatch } from '../match/orchestration.js'
 import { createModel } from '../model/factory.js'
 import { ModelBackedTankAgent } from '../model/tank-agent.js'
@@ -13,7 +14,7 @@ import type { CliRunHooks } from './hooks.js'
 
 interface RosterPlayer {
   label: string
-  scripted?: 'aggressive' | 'conservative' | 'fable'
+  scripted?: 'aggressive' | 'conservative' | 'fable' | 'glm'
   model?: {
     name: string
     baseURL: string
@@ -220,6 +221,14 @@ export async function runBatch(argv: string[], hooks: CliRunHooks = {}): Promise
         }
         if (p.scripted === 'fable') {
           return createFableAgent(tankId, config)
+        }
+        if (p.scripted === 'glm') {
+          return createGlmAgent(tankId, {
+            shellMaxRange: config.shell.maxRange,
+            moveMax: config.moveMax ?? config.fog.flareRadius,
+            mapWidth: config.map.width,
+            mapHeight: config.map.height,
+          })
         }
         return createConservativeAgent(tankId)
       }

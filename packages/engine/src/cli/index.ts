@@ -9,6 +9,7 @@ import { ModelBackedTankAgent } from '../model/tank-agent.js'
 import { buildSystemPrompt } from '../model/system-prompt.js'
 import { createAggressiveAgent, createConservativeAgent } from '../match/scripted-agents.js'
 import { createFableAgent } from '../match/fable-agent.js'
+import { createGlmAgent } from '../match/glm-agent.js'
 import { runBatch } from './batch.js'
 import { runAggregate } from './aggregate.js'
 import { runExhibition } from './exhibition.js'
@@ -101,6 +102,13 @@ export async function runCli(argv: string[], hooks: CliRunHooks = {}): Promise<v
           return createAggressiveAgent(p.label)
         } else if (p.scripted === 'fable') {
           return createFableAgent(p.label, config)
+        } else if (p.scripted === 'glm') {
+          return createGlmAgent(p.label, {
+            shellMaxRange: config.shell.maxRange,
+            moveMax: config.moveMax ?? config.fog.flareRadius,
+            mapWidth: config.map.width,
+            mapHeight: config.map.height,
+          })
         } else {
           return createConservativeAgent(p.label)
         }
