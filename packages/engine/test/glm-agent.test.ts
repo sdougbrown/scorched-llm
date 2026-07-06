@@ -289,7 +289,7 @@ describe('glm-agent integration', () => {
   it('glm vs aggressive across multiple seeds: glm wins majority', async () => {
     const seeds = [42, 7, 99, 123, 256]
     let glmWins = 0
-    let glmRanks: number[] = []
+    const glmRanks: number[] = []
     for (const seed of seeds) {
       const { result } = await runGlmMatch(
         createGlmAgent('tank-0', { shellMaxRange: 10, moveMax: 2, mapWidth: 20, mapHeight: 20 }),
