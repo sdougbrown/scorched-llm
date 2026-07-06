@@ -29,6 +29,7 @@ import { createOpus46Agent } from '../match/opus-4.6-agent.js'
 import { createMimoAgent } from '../match/mimo-agent.js'
 import { createStepAgent } from '../match/step-agent.js'
 import { createGptOssAgent } from '../match/gpt-oss-agent.js'
+import { createNorthAgent } from '../match/north-agent.js'
 import { runBatch } from './batch.js'
 import { runAggregate } from './aggregate.js'
 import { runExhibition } from './exhibition.js'
@@ -178,6 +179,8 @@ export async function runCli(argv: string[], hooks: CliRunHooks = {}): Promise<v
           return createStepAgent(p.label)
         } else if (p.scripted === 'gpt-oss') {
           return createGptOssAgent(p.label)
+        } else if (p.scripted === 'north') {
+          return createNorthAgent(p.label)
         } else if (p.scripted === 'conservative') {
           return createConservativeAgent(p.label)
         }

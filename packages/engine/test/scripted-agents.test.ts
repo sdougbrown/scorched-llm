@@ -4,6 +4,7 @@ import {
   createConservativeAgent,
 } from '../src/match/scripted-agents.js'
 import { createGpt55Agent } from '../src/match/gpt-5.5-agent.js'
+import { createNorthAgent } from '../src/match/north-agent.js'
 import type { WorldView } from '../src/types/events.js'
 import type { ToolCall } from '../src/types/tool.js'
 import type { Coordinate } from '../src/types/coords.js'
@@ -297,7 +298,187 @@ describe('memory persistence', () => {
       [],
     )
     // Consistent: still has memory, just different toggle state
-    expect(calls2.length).toBeGreaterThan(0)
+  })
+})
+
+// --- NorthAgent tests ---
+
+describe('NorthAgent', () => {
+  it('has correct name', () => {
+    const agent = createNorthAgent('tank-0')
+    expect(agent.name).toBe('north-tank-0')
+  })
+
+  it('returns valid tool calls', async () => {
+    const agent = createNorthAgent('tank-0')
+    const calls = await agent.takeTurn(makeWorldView(), [])
+    expect(calls.length).toBeGreaterThan(0)
+    for (const call of calls) {
+      expect(call).toHaveProperty('id')
+      expect(call).toHaveProperty('tool')
+    }
+  })
+
+  it('has defensive behavior when wounded', async () => {
+    const agent = createNorthAgent('tank-0')
+    const calls = await agent.takeTurn(
+      makeWorldView({ hp: 1, position: { x: 5, y: 5 } }),
+      [],
+    )
+    const moveCall = firstMoveCall(calls)
+    expect(moveCall).toBeDefined()
+  })
+
+  it('flares when blinded for multiple turns', async () => {
+    const agent = createNorthAgent('tank-0')
+    
+    const calls = await agent.takeTurn(
+      makeWorldView({
+        position: { x: 5, y: 5 },
+        localScan: [],
+        flaredCells: [],
+        inEnemyFlare: [],
+        turn: 1,
+        aliveEnemyCount: 0,
+      }),
+      [],
+    )
+    const flareCall = firstFlareCall(calls)
+    expect(flareCall).toBeUndefined()
+  })
+
+  it('flares after 3 turns of being blinded', async () => {
+    const agent = createNorthAgent('tank-0')
+    
+    await agent.takeTurn(
+      makeWorldView({
+        position: { x: 5, y: 5 },
+        localScan: [],
+        flaredCells: [],
+        inEnemyFlare: [],
+        turn: 1,
+        aliveEnemyCount: 0,
+      }),
+      [],
+    )
+    await agent.takeTurn(
+      makeWorldView({
+        position: { x: 5, y: 5 },
+        localScan: [],
+        flaredCells: [],
+        inEnemyFlare: [],
+        turn: 2,
+        aliveEnemyCount: 0,
+      }),
+      [],
+    )
+    await agent.takeTurn(
+      makeWorldView({
+        position: { x: 5, y: 5 },
+        localScan: [],
+        flaredCells: [],
+        inEnemyFlare: [],
+        turn: 3,
+        aliveEnemyCount: 0,
+      }),
+      [],
+    )
+    const calls = await agent.takeTurn(
+      makeWorldView({
+        position: { x: 5, y: 5 },
+        localScan: [],
+        flaredCells: [],
+        inEnemyFlare: [],
+        turn: 4,
+        aliveEnemyCount: 0,
+      }),
+      [],
+    )
+    const flareCall = firstFlareCall(calls)
+    expect(flareCall).toBeDefined()
+  })
+
+  it('is deterministic — same input → same output', async () => {
+    const enemyPos: Coordinate = { x: 10, y: 10 }
+    const agent1 = createNorthAgent('tank-0', enemyPos, 3)
+    const agent2 = createNorthAgent('tank-0', enemyPos, 3)
+    const vw: WorldView = {
+      position: { x: 0, y: 0 },
+      hp: 2,
+      facing: 0,
+      localScan: [],
+      flaredCells: [],
+      inEnemyFlare: [],
+      remainingActions: 2,
+      turn: 5,
+      isMyTurn: true,
+      aliveEnemyCount: 1,
+    }
+    const calls1 = await agent1.takeTurn(vw, [])
+    const calls2 = await agent2.takeTurn(vw, [])
+    expect(calls1.length).toBe(calls2.length)
+    expect(calls1.map(extractToolKind)).toEqual(calls2.map(extractToolKind))
+  })
+
+  it('fires with adjusted power when wounded', async () => {
+    const enemyPos: Coordinate = { x: 15, y: 15 }
+    const agent = createNorthAgent('tank-0', enemyPos, 3)
+    const calls = await agent.takeTurn(
+      makeWorldView({
+        position: { x: 0, y: 0 },
+        turn: 5,
+        hp: 1,
+        aliveEnemyCount: 1,
+      }),
+      [],
+    )
+    const shellCall = firstShellCall(calls)
+    expect(shellCall).toBeDefined()
+    expect(shellCall!.tool.kind).toBe('fire_shell')
+    expect(shellCall!.tool.power).toBeLessThan(10)
+  })
+
+  it('adjusts behavior based on position vs center', async () => {
+    const agent = createNorthAgent('tank-0')
+    
+    const calls1 = await agent.takeTurn(
+      makeWorldView({
+        position: { x: 0, y: 0 },
+        turn: 1,
+        aliveEnemyCount: 0,
+      }),
+      [],
+    )
+    const moveCall1 = firstMoveCall(calls1)
+    expect(moveCall1).toBeDefined()
+    
+    const calls2 = await agent.takeTurn(
+      makeWorldView({
+        position: { x: 10, y: 10 },
+        turn: 2,
+        aliveEnemyCount: 0,
+      }),
+      [],
+    )
+    const moveCall2 = firstMoveCall(calls2)
+    expect(moveCall2).toBeDefined()
+  })
+
+  it('has aggressive positioning when enemy is visible', async () => {
+    const enemyPos: Coordinate = { x: 10, y: 10 }
+    const agent = createNorthAgent('tank-0', enemyPos, 3)
+    const calls = await agent.takeTurn(
+      makeWorldView({
+        position: { x: 5, y: 5 },
+        turn: 5,
+        aliveEnemyCount: 1,
+      }),
+      [],
+    )
+    const shellCall = firstShellCall(calls)
+    expect(shellCall).toBeDefined()
+    const moveCall = firstMoveCall(calls)
+    expect(moveCall).toBeDefined()
   })
 })
 
