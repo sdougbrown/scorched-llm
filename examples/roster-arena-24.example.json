@@ -1,0 +1,100 @@
+{
+  "players": [
+    {
+      "label": "Fable",
+      "scripted": "fable"
+    },
+    {
+      "label": "Fable Fresh",
+      "scripted": "fable-fresh"
+    },
+    {
+      "label": "Sonnet 5",
+      "scripted": "sonnet"
+    },
+    {
+      "label": "Sonnet 5b",
+      "scripted": "sonnet-5b"
+    },
+    {
+      "label": "Sonnet 4.6",
+      "scripted": "sonnet-4.6"
+    },
+    {
+      "label": "Haiku",
+      "scripted": "haiku"
+    },
+    {
+      "label": "Opus 4.8",
+      "scripted": "opus"
+    },
+    {
+      "label": "Opus 4.6",
+      "scripted": "opus-4.6"
+    },
+    {
+      "label": "GPT-5.4",
+      "scripted": "gpt-5.4"
+    },
+    {
+      "label": "GPT-5.5",
+      "scripted": "gpt-5.5"
+    },
+    {
+      "label": "Gemini",
+      "scripted": "gemini"
+    },
+    {
+      "label": "Gemma",
+      "scripted": "gemma"
+    },
+    {
+      "label": "DeepSeek",
+      "scripted": "deepseek"
+    },
+    {
+      "label": "DeepSeek Pro",
+      "scripted": "deepseek-pro"
+    },
+    {
+      "label": "Qwen-27B",
+      "scripted": "qwen-27b"
+    },
+    {
+      "label": "Kimi",
+      "scripted": "kimi"
+    },
+    {
+      "label": "Minimax",
+      "scripted": "minimax"
+    },
+    {
+      "label": "GLM",
+      "scripted": "glm"
+    },
+    {
+      "label": "Nemotron",
+      "scripted": "nemotron"
+    },
+    {
+      "label": "GPT-OSS",
+      "scripted": "gpt-oss"
+    },
+    {
+      "label": "MiMo",
+      "scripted": "mimo"
+    },
+    {
+      "label": "Step",
+      "scripted": "step"
+    },
+    {
+      "label": "North",
+      "scripted": "north"
+    },
+    {
+      "label": "Qwen-35B",
+      "scripted": "qwen35b"
+    }
+  ]
+}
