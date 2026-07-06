@@ -4,6 +4,7 @@ import { type PlayerSpec } from '../config/schema.js'
 import { DEFAULT_SEED_COUNT, PRESETS, SEED_SUITE, type PresetName } from '../config/presets.js'
 import { alwaysPassAgent } from '../match/fake-agents.js'
 import { createAggressiveAgent, createConservativeAgent } from '../match/scripted-agents.js'
+import { createDeepSeekProAgent } from '../match/deepseek-pro-agent.js'
 import { runMatch } from '../match/orchestration.js'
 import { createModel } from '../model/factory.js'
 import { ModelBackedTankAgent } from '../model/tank-agent.js'
@@ -12,7 +13,7 @@ import type { CliRunHooks } from './hooks.js'
 
 interface RosterPlayer {
   label: string
-  scripted?: 'aggressive' | 'conservative'
+  scripted?: 'aggressive' | 'conservative' | 'deepseek-pro'
   model?: {
     name: string
     baseURL: string
@@ -216,8 +217,10 @@ export async function runBatch(argv: string[], hooks: CliRunHooks = {}): Promise
       if (p.scripted) {
         if (p.scripted === 'aggressive') {
           return createAggressiveAgent(tankId)
+        } else if (p.scripted === 'conservative') {
+          return createConservativeAgent(tankId)
         }
-        return createConservativeAgent(tankId)
+        return createDeepSeekProAgent(tankId)
       }
       if (p.model && live) {
         const model = createModel(p.model, {
