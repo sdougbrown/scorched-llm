@@ -20,6 +20,7 @@ import { createFableFreshAgent } from '../match/fable-fresh-agent.js'
 import { createSonnet5bAgent } from '../match/sonnet-5b-agent.js'
 import { createNemotronAgent } from '../match/nemotron-agent.js'
 import { createSonnet46Agent } from '../match/sonnet-4.6-agent.js'
+import { createDeepSeekProAgent } from '../match/deepseek-pro-agent.js'
 import { runMatch } from '../match/orchestration.js'
 import { alwaysPassAgent } from '../match/fake-agents.js'
 import { aggregateLogs } from './aggregate.js'
@@ -225,8 +226,15 @@ export async function runExhibition(argv: string[]): Promise<void> {
         case 'sonnet-5b': return createSonnet5bAgent(tankId)
         case 'nemotron': return createNemotronAgent(tankId)
         case 'sonnet-4.6': return createSonnet46Agent(tankId)
+        case 'deepseek-pro': return createDeepSeekProAgent(tankId)
         default: return createConservativeAgent(tankId)
       }
+      if (p.scripted === 'aggressive') {
+        return createAggressiveAgent(tankId)
+      } else if (p.scripted === 'conservative') {
+        return createConservativeAgent(tankId)
+      }
+      return createDeepSeekProAgent(tankId)
     })
 
     const progressLabels = entry.players.map((p) => p.label).join(' vs ')
