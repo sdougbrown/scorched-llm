@@ -51,7 +51,7 @@ export function computeMatchResult(
   // Turn limit or other — rank by criteria
   const sorted = [...state.tanks].sort((a, b) => {
     // Alive status (desc)
-    if (a.alive !== b.alive) return a.alive ? 1 : -1
+    if (a.alive !== b.alive) return a.alive ? -1 : 1
     // HP remaining (desc)
     if (a.hp !== b.hp) return b.hp - a.hp
     // Damage dealt (desc)
