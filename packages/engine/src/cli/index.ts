@@ -14,6 +14,7 @@ import { createAggressiveAgent, createConservativeAgent, createDeepSeekAgent } f
 import { createHaikuAgent } from '../match/haiku-agent.js'
 import { createSonnetAgent } from '../match/sonnet-agent.js'
 import { createOpusAgent, opusOptionsFromConfig } from '../match/opus-agent.js'
+import { createGpt54Agent } from '../match/gpt-5.4-agent.js'
 import { runBatch } from './batch.js'
 import { runAggregate } from './aggregate.js'
 import { runExhibition } from './exhibition.js'
@@ -123,6 +124,13 @@ export async function runCli(argv: string[], hooks: CliRunHooks = {}): Promise<v
           return createSonnetAgent(p.label, config)
         } else if (p.scripted === 'opus') {
           return createOpusAgent(p.label, opusOptionsFromConfig(config))
+        } else if (p.scripted === 'gpt-5.4') {
+          return createGpt54Agent(p.label, {
+            shellMaxRange: config.shell.maxRange,
+            moveMax: config.moveMax ?? config.fog.flareRadius,
+            flareMaxRange: config.fog.flareRadius,
+            flareRadius: config.fog.flareRadius,
+          })
         } else {
           return createConservativeAgent(p.label)
         }

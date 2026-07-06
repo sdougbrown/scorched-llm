@@ -10,6 +10,7 @@ import { createAggressiveAgent, createConservativeAgent, createDeepSeekAgent } f
 import { createHaikuAgent } from '../match/haiku-agent.js'
 import { createSonnetAgent } from '../match/sonnet-agent.js'
 import { createOpusAgent, opusOptionsFromConfig } from '../match/opus-agent.js'
+import { createGpt54Agent } from '../match/gpt-5.4-agent.js'
 import { runMatch } from '../match/orchestration.js'
 import { createModel } from '../model/factory.js'
 import { ModelBackedTankAgent } from '../model/tank-agent.js'
@@ -18,7 +19,7 @@ import type { CliRunHooks } from './hooks.js'
 
 interface RosterPlayer {
   label: string
-  scripted?: 'aggressive' | 'conservative' | 'fable' | 'glm' | 'deepseek' | 'qwen-27b' | 'haiku' | 'sonnet' | 'opus'
+  scripted?: 'aggressive' | 'conservative' | 'fable' | 'glm' | 'deepseek' | 'qwen-27b' | 'haiku' | 'sonnet' | 'opus' | 'gpt-5.4'
   model?: {
     name: string
     baseURL: string
@@ -247,7 +248,15 @@ export async function runBatch(argv: string[], hooks: CliRunHooks = {}): Promise
         if (p.scripted === 'opus') {
           return createOpusAgent(tankId, opusOptionsFromConfig(config))
         }
-        return createConservativeAgent(tankId)
+        if (p.scripted === 'conservative') {
+          return createConservativeAgent(tankId)
+        }
+        return createGpt54Agent(tankId, {
+          shellMaxRange: config.shell.maxRange,
+          moveMax: config.moveMax ?? config.fog.flareRadius,
+          flareMaxRange: config.fog.flareRadius,
+          flareRadius: config.fog.flareRadius,
+        })
       }
       if (p.model && live) {
         const model = createModel(p.model, {

@@ -10,6 +10,7 @@ import { createAggressiveAgent, createConservativeAgent, createDeepSeekAgent } f
 import { createHaikuAgent } from '../match/haiku-agent.js'
 import { createSonnetAgent } from '../match/sonnet-agent.js'
 import { createOpusAgent, opusOptionsFromConfig } from '../match/opus-agent.js'
+import { createGpt54Agent } from '../match/gpt-5.4-agent.js'
 import { runMatch } from '../match/orchestration.js'
 import { alwaysPassAgent } from '../match/fake-agents.js'
 import { aggregateLogs } from './aggregate.js'
@@ -17,7 +18,7 @@ import { SYSTEM_PROMPT_VERSION } from '../model/system-prompt.js'
 
 interface RosterPlayer {
   label: string
-  scripted: 'aggressive' | 'conservative' | 'fable' | 'glm' | 'deepseek' | 'qwen-27b' | 'haiku' | 'sonnet' | 'opus'
+  scripted: 'aggressive' | 'conservative' | 'fable' | 'glm' | 'deepseek' | 'qwen-27b' | 'haiku' | 'sonnet' | 'opus' | 'gpt-5.4'
 }
 
 interface BatchEntry {
@@ -206,7 +207,15 @@ export async function runExhibition(argv: string[]): Promise<void> {
       if (p.scripted === 'opus') {
         return createOpusAgent(tankId, opusOptionsFromConfig(config))
       }
-      return createConservativeAgent(tankId)
+      if (p.scripted === 'conservative') {
+        return createConservativeAgent(tankId)
+      }
+      return createGpt54Agent(tankId, {
+        shellMaxRange: config.shell.maxRange,
+        moveMax: config.moveMax ?? config.fog.flareRadius,
+        flareMaxRange: config.fog.flareRadius,
+        flareRadius: config.fog.flareRadius,
+      })
     })
 
     const progressLabels = entry.players.map((p) => p.label).join(' vs ')
