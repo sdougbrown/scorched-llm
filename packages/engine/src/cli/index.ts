@@ -17,6 +17,7 @@ import { createOpusAgent, opusOptionsFromConfig } from '../match/opus-agent.js'
 import { createGpt54Agent } from '../match/gpt-5.4-agent.js'
 import { createGpt55Agent } from '../match/gpt-5.5-agent.js'
 import { createGeminiAgent } from '../match/gemini-agent.js'
+import { createKimiAgent } from '../match/kimi-agent.js'
 import { runBatch } from './batch.js'
 import { runAggregate } from './aggregate.js'
 import { runExhibition } from './exhibition.js'
@@ -111,6 +112,13 @@ export async function runCli(argv: string[], hooks: CliRunHooks = {}): Promise<v
           return createFableAgent(p.label, config)
         } else if (p.scripted === 'glm') {
           return createGlmAgent(p.label, {
+            shellMaxRange: config.shell.maxRange,
+            moveMax: config.moveMax ?? config.fog.flareRadius,
+            mapWidth: config.map.width,
+            mapHeight: config.map.height,
+          })
+        } else if (p.scripted === 'kimi') {
+          return createKimiAgent(p.label, {
             shellMaxRange: config.shell.maxRange,
             moveMax: config.moveMax ?? config.fog.flareRadius,
             mapWidth: config.map.width,

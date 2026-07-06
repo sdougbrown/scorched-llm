@@ -13,6 +13,7 @@ import { createOpusAgent, opusOptionsFromConfig } from '../match/opus-agent.js'
 import { createGpt54Agent } from '../match/gpt-5.4-agent.js'
 import { createGpt55Agent } from '../match/gpt-5.5-agent.js'
 import { createGeminiAgent } from '../match/gemini-agent.js'
+import { createKimiAgent } from '../match/kimi-agent.js'
 import { runMatch } from '../match/orchestration.js'
 import { createModel } from '../model/factory.js'
 import { ModelBackedTankAgent } from '../model/tank-agent.js'
@@ -245,6 +246,12 @@ export async function runBatch(argv: string[], hooks: CliRunHooks = {}): Promise
           })
           case 'gpt-5.5': return createGpt55Agent(tankId)
           case 'gemini': return createGeminiAgent(tankId)
+          case 'kimi': return createKimiAgent(tankId, {
+            shellMaxRange: config.shell.maxRange,
+            moveMax: config.moveMax ?? config.fog.flareRadius,
+            mapWidth: config.map.width,
+            mapHeight: config.map.height,
+          })
           default: return createConservativeAgent(tankId)
         }
       }
