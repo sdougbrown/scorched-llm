@@ -1,0 +1,164 @@
+{
+  "rulesVersion": "v1",
+  "seed": 42,
+  "spawnStrategy": "spread",
+  "map": {
+    "width": 40,
+    "height": 40,
+    "obstacleDensity": 0.12,
+    "generatorVersion": "v1",
+    "obstacleHeight": 3
+  },
+  "players": [
+    {
+      "label": "Fable",
+      "scripted": "fable",
+      "startPosition": "random"
+    },
+    {
+      "label": "Fable Fresh",
+      "scripted": "fable-fresh",
+      "startPosition": "random"
+    },
+    {
+      "label": "Sonnet 5",
+      "scripted": "sonnet",
+      "startPosition": "random"
+    },
+    {
+      "label": "Sonnet 5b",
+      "scripted": "sonnet-5b",
+      "startPosition": "random"
+    },
+    {
+      "label": "Sonnet 4.6",
+      "scripted": "sonnet-4.6",
+      "startPosition": "random"
+    },
+    {
+      "label": "Haiku",
+      "scripted": "haiku",
+      "startPosition": "random"
+    },
+    {
+      "label": "Opus 4.8",
+      "scripted": "opus",
+      "startPosition": "random"
+    },
+    {
+      "label": "Opus 4.6",
+      "scripted": "opus-4.6",
+      "startPosition": "random"
+    },
+    {
+      "label": "GPT-5.4",
+      "scripted": "gpt-5.4",
+      "startPosition": "random"
+    },
+    {
+      "label": "GPT-5.5",
+      "scripted": "gpt-5.5",
+      "startPosition": "random"
+    },
+    {
+      "label": "Gemini",
+      "scripted": "gemini",
+      "startPosition": "random"
+    },
+    {
+      "label": "Gemma",
+      "scripted": "gemma",
+      "startPosition": "random"
+    },
+    {
+      "label": "DeepSeek",
+      "scripted": "deepseek",
+      "startPosition": "random"
+    },
+    {
+      "label": "DeepSeek Pro",
+      "scripted": "deepseek-pro",
+      "startPosition": "random"
+    },
+    {
+      "label": "Qwen-27B",
+      "scripted": "qwen-27b",
+      "startPosition": "random"
+    },
+    {
+      "label": "Kimi",
+      "scripted": "kimi",
+      "startPosition": "random"
+    },
+    {
+      "label": "Minimax",
+      "scripted": "minimax",
+      "startPosition": "random"
+    },
+    {
+      "label": "GLM",
+      "scripted": "glm",
+      "startPosition": "random"
+    },
+    {
+      "label": "Nemotron",
+      "scripted": "nemotron",
+      "startPosition": "random"
+    },
+    {
+      "label": "GPT-OSS",
+      "scripted": "gpt-oss",
+      "startPosition": "random"
+    },
+    {
+      "label": "MiMo",
+      "scripted": "mimo",
+      "startPosition": "random"
+    },
+    {
+      "label": "Step",
+      "scripted": "step",
+      "startPosition": "random"
+    },
+    {
+      "label": "North",
+      "scripted": "north",
+      "startPosition": "random"
+    },
+    {
+      "label": "Qwen-35B",
+      "scripted": "qwen35b",
+      "startPosition": "random"
+    },
+    {
+      "label": "DeepSeek-V4-Flash (live)",
+      "startPosition": "random",
+      "model": {
+        "name": "DeepSeek-V4-Flash-DSpark",
+        "baseURL": "http://sparky:4000/v1",
+        "model": "deepseek-flash",
+        "parameters": {
+          "temperature": 0.7,
+          "maxTokens": 4048
+        }
+      }
+    }
+  ],
+  "fog": {
+    "localRadius": 3,
+    "flareRadius": 3,
+    "flareDuration": "one-round-global"
+  },
+  "actionEconomy": "double",
+  "shell": {
+    "maxRange": 12,
+    "apexHeight": 5,
+    "tankHeight": 1
+  },
+  "lethality": {
+    "hitsToKill": 2
+  },
+  "turnLimit": 400,
+  "perTurnTimeoutMs": 180000,
+  "maxToolCallsPerTurn": 5
+}
