@@ -20,7 +20,7 @@ export const ModelSpecSchema = z.object({
 })
 export type ModelSpec = z.infer<typeof ModelSpecSchema>
 
-export const ScriptedAgentSchema = z.enum(['aggressive', 'conservative', 'fable', 'glm', 'deepseek', 'qwen-27b', 'haiku', 'sonnet', 'opus', 'gpt-5.4', 'gpt-5.5', 'gemini', 'kimi', 'minimax', 'gemma', 'fable-fresh', 'sonnet-5b', 'nemotron', 'sonnet-4.6', 'deepseek-pro', 'opus-4.6'])
+export const ScriptedAgentSchema = z.enum(['aggressive', 'conservative', 'fable', 'glm', 'deepseek', 'qwen-27b', 'haiku', 'sonnet', 'opus', 'gpt-5.4', 'gpt-5.5', 'gemini', 'kimi', 'minimax', 'gemma', 'fable-fresh', 'sonnet-5b', 'nemotron', 'sonnet-4.6', 'deepseek-pro', 'opus-4.6', 'mimo'])
 export type ScriptedAgentKind = z.infer<typeof ScriptedAgentSchema>
 
 export const PlayerSpecSchema = z.object({

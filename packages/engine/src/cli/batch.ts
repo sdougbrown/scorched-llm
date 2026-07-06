@@ -22,6 +22,7 @@ import { createNemotronAgent } from '../match/nemotron-agent.js'
 import { createSonnet46Agent } from '../match/sonnet-4.6-agent.js'
 import { createDeepSeekProAgent } from '../match/deepseek-pro-agent.js'
 import { createOpus46Agent } from '../match/opus-4.6-agent.js'
+import { createMimoAgent } from '../match/mimo-agent.js'
 import { runMatch } from '../match/orchestration.js'
 import { createModel } from '../model/factory.js'
 import { ModelBackedTankAgent } from '../model/tank-agent.js'
@@ -268,8 +269,10 @@ export async function runBatch(argv: string[], hooks: CliRunHooks = {}): Promise
           case 'gemma': return createGemmaAgent(tankId)
           case 'fable-fresh': return createFableFreshAgent(tankId, config)
           case 'nemotron': return createNemotronAgent(tankId)
+          case 'mimo': return createMimoAgent(tankId)
           default: return createConservativeAgent(tankId)
         }
+        return createConservativeAgent(tankId)
       }
       if (p.model && live) {
         const model = createModel(p.model, {
