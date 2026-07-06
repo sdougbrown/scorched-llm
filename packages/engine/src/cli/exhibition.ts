@@ -4,6 +4,7 @@ import { type PlayerSpec } from '../config/schema.js'
 import { DEFAULT_SEED_COUNT, PRESETS, SEED_SUITE, type PresetName } from '../config/presets.js'
 import { VERSION } from '../index.js'
 import { createAggressiveAgent, createConservativeAgent } from '../match/scripted-agents.js'
+import { createGpt54Agent } from '../match/gpt-5.4-agent.js'
 import { runMatch } from '../match/orchestration.js'
 import { alwaysPassAgent } from '../match/fake-agents.js'
 import { aggregateLogs } from './aggregate.js'
@@ -11,7 +12,7 @@ import { SYSTEM_PROMPT_VERSION } from '../model/system-prompt.js'
 
 interface RosterPlayer {
   label: string
-  scripted: 'aggressive' | 'conservative'
+  scripted: 'aggressive' | 'conservative' | 'gpt-5.4'
 }
 
 interface BatchEntry {
@@ -176,7 +177,15 @@ export async function runExhibition(argv: string[]): Promise<void> {
       if (p.scripted === 'aggressive') {
         return createAggressiveAgent(tankId)
       }
-      return createConservativeAgent(tankId)
+      if (p.scripted === 'conservative') {
+        return createConservativeAgent(tankId)
+      }
+      return createGpt54Agent(tankId, {
+        shellMaxRange: config.shell.maxRange,
+        moveMax: config.moveMax ?? config.fog.flareRadius,
+        flareMaxRange: config.fog.flareRadius,
+        flareRadius: config.fog.flareRadius,
+      })
     })
 
     const progressLabels = entry.players.map((p) => p.label).join(' vs ')

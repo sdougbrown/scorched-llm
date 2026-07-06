@@ -4,6 +4,7 @@ import { type PlayerSpec } from '../config/schema.js'
 import { DEFAULT_SEED_COUNT, PRESETS, SEED_SUITE, type PresetName } from '../config/presets.js'
 import { alwaysPassAgent } from '../match/fake-agents.js'
 import { createAggressiveAgent, createConservativeAgent } from '../match/scripted-agents.js'
+import { createGpt54Agent } from '../match/gpt-5.4-agent.js'
 import { runMatch } from '../match/orchestration.js'
 import { createModel } from '../model/factory.js'
 import { ModelBackedTankAgent } from '../model/tank-agent.js'
@@ -12,7 +13,7 @@ import type { CliRunHooks } from './hooks.js'
 
 interface RosterPlayer {
   label: string
-  scripted?: 'aggressive' | 'conservative'
+  scripted?: 'aggressive' | 'conservative' | 'gpt-5.4'
   model?: {
     name: string
     baseURL: string
@@ -217,7 +218,15 @@ export async function runBatch(argv: string[], hooks: CliRunHooks = {}): Promise
         if (p.scripted === 'aggressive') {
           return createAggressiveAgent(tankId)
         }
-        return createConservativeAgent(tankId)
+        if (p.scripted === 'conservative') {
+          return createConservativeAgent(tankId)
+        }
+        return createGpt54Agent(tankId, {
+          shellMaxRange: config.shell.maxRange,
+          moveMax: config.moveMax ?? config.fog.flareRadius,
+          flareMaxRange: config.fog.flareRadius,
+          flareRadius: config.fog.flareRadius,
+        })
       }
       if (p.model && live) {
         const model = createModel(p.model, {
