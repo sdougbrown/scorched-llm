@@ -24,6 +24,7 @@ import { createDeepSeekProAgent } from '../match/deepseek-pro-agent.js'
 import { createOpus46Agent } from '../match/opus-4.6-agent.js'
 import { createMimoAgent } from '../match/mimo-agent.js'
 import { createStepAgent } from '../match/step-agent.js'
+import { createGptOssAgent } from '../match/gpt-oss-agent.js'
 import { runMatch } from '../match/orchestration.js'
 import { createModel } from '../model/factory.js'
 import { ModelBackedTankAgent } from '../model/tank-agent.js'
@@ -272,6 +273,7 @@ export async function runBatch(argv: string[], hooks: CliRunHooks = {}): Promise
           case 'nemotron': return createNemotronAgent(tankId)
           case 'mimo': return createMimoAgent(tankId)
           case 'step': return createStepAgent(tankId)
+          case 'gpt-oss': return createGptOssAgent(tankId)
           default: return createConservativeAgent(tankId)
         }
         return createConservativeAgent(tankId)
