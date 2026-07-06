@@ -30,3 +30,4 @@ Thumbs.db
 # exhibition / batch output
 /exhibitions/
 /batch-output/
+.claude/worktrees/
