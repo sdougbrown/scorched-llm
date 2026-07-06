@@ -85,15 +85,23 @@ export async function runCli(argv: string[], hooks: CliRunHooks = {}): Promise<v
   let configPath: string | undefined
   let outPath: string | undefined
   let live = false
+  let seedOverride: number | undefined
 
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--config' && argv[i + 1]) {
       configPath = resolve(argv[++i])
     } else if (argv[i] === '--out' && argv[i + 1]) {
       outPath = resolve(argv[++i])
+    } else if (argv[i] === '--seed' && argv[i + 1]) {
+      seedOverride = parseInt(argv[++i], 10)
     } else if (argv[i] === '--live') {
       live = true
     }
+  }
+
+  if (seedOverride !== undefined && !Number.isInteger(seedOverride)) {
+    console.error('Error: --seed must be an integer')
+    process.exit(1)
   }
 
   if (!configPath) {
@@ -108,7 +116,11 @@ export async function runCli(argv: string[], hooks: CliRunHooks = {}): Promise<v
   mkdirSync(dirname(outPath), { recursive: true })
 
   const raw = readFileSync(configPath, 'utf-8')
-  const config = parseMatchConfig(JSON.parse(raw))
+  const parsedRaw = JSON.parse(raw)
+  if (seedOverride !== undefined) {
+    parsedRaw.seed = seedOverride
+  }
+  const config = parseMatchConfig(parsedRaw)
 
   const agents = config.players.map((p) => {
     if (live) {
