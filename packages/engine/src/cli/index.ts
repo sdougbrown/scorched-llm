@@ -174,13 +174,12 @@ export async function runCli(argv: string[], hooks: CliRunHooks = {}): Promise<v
           return createOpus46Agent(p.label)
         } else if (p.scripted === 'mimo') {
           return createMimoAgent(p.label)
-        } else {
-        }
-        if (p.scripted === 'conservative') {
-          return createConservativeAgent(p.label)
-        }
-        if (p.scripted === 'step') {
+        } else if (p.scripted === 'step') {
           return createStepAgent(p.label)
+        } else if (p.scripted === 'gpt-oss') {
+          return createGptOssAgent(p.label)
+        } else if (p.scripted === 'conservative') {
+          return createConservativeAgent(p.label)
         }
         throw new Error(`Unknown scripted type: ${p.scripted}`)
       }
