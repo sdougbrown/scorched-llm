@@ -60,6 +60,20 @@ describe('computeMatchResult — last standing', () => {
   })
 })
 
+describe('computeMatchResult — turn limit with casualties', () => {
+  it('ranks living tanks above dead ones at the turn limit', () => {
+    const state = createState([
+      { id: 't1', position: { x: 5, y: 5 }, hp: 0, maxHp: 2, alive: false, facing: 0, damageDealt: 2, hitsLanded: 2 },
+      { id: 't2', position: { x: 10, y: 10 }, hp: 1, maxHp: 2, alive: true, facing: 180, damageDealt: 1, hitsLanded: 1 },
+      { id: 't3', position: { x: 2, y: 2 }, hp: 2, maxHp: 2, alive: true, facing: 90, damageDealt: 0, hitsLanded: 0 },
+    ])
+    const result = computeMatchResult(state, config, config.turnLimit)
+    expect(result.terminationReason).toBe('turn-limit')
+    expect(result.placements.map((p) => p.tankId)).toEqual(['t3', 't2', 't1'])
+    expect(result.placements[0].rank).toBe(1)
+  })
+})
+
 describe('computeMatchResult — mutual destruction', () => {
   it('returns mutual-destruction when all dead', () => {
     const state = createState([
