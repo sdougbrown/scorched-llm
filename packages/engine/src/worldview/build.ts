@@ -104,6 +104,7 @@ export function buildWorldView(
     })),
     inEnemyFlare,
     remainingActions,
+    ...(tank.bombsRemaining !== undefined ? { bombsRemaining: tank.bombsRemaining } : {}),
     turn: state.turn,
     isMyTurn: state.tanks[state.currentPlayerIndex]?.id === tankId,
     aliveEnemyCount,

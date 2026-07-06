@@ -13,6 +13,7 @@ import { expireFlares } from '../resolution/flare.js'
 import { move } from '../resolution/movement.js'
 import { fireFlare } from '../resolution/flare.js'
 import { fireShell } from '../resolution/shell.js'
+import { fireBomb, bombSplashRadius } from '../resolution/bomb.js'
 import { applyDamage } from '../resolution/damage.js'
 import { buildWorldView } from '../worldview/build.js'
 import { computeMatchResult } from '../result/ranking.js'
@@ -153,6 +154,7 @@ function createInitialGameState(config: MatchConfig, rng: Rng): GameState {
     const maxHp = config.lethality.hitsToKill === 2 ? 2 : 1
     return {
       id: `tank-${i}`,
+      ...(config.bomb ? { bombsRemaining: config.bomb.uses } : {}),
       position,
       hp: maxHp,
       maxHp,
@@ -202,6 +204,26 @@ function checkTermination(
     return computeMatchResult(state, config, turnCursor)
   }
   return null
+}
+
+function buildTools(config: MatchConfig): ToolSpec[] {
+  if (!config.bomb) return TOOLS
+  return [
+    ...TOOLS,
+    {
+      name: 'fire_bomb',
+      description: `Lob a bomb that detonates on impact, dealing damage to EVERY living tank within a radius of ${bombSplashRadius(config)} cells of the impact point — including you if you are too close. Flies exactly like a shell (same arc; obstacles block it). Limited supply: ${config.bomb.uses} per match. Counts as your one offensive action for the turn (mutually exclusive with fire_shell and fire_flare).`,
+      parameters: {
+        type: 'object',
+        properties: {
+          angle: { type: 'number', minimum: 0, exclusiveMaximum: 360 },
+          power: { type: 'number', exclusiveMinimum: 0, maximum: config.bomb.maxRange },
+        },
+        required: ['angle', 'power'],
+        additionalProperties: false,
+      },
+    },
+  ]
 }
 
 const TOOLS: ToolSpec[] = [
@@ -303,6 +325,9 @@ function buildUmpireFields(toolCall: ToolCall): Record<string, unknown> {
     case 'fire_shell':
       fields.shell = { angle: tool.angle, power: tool.power }
       break
+    case 'fire_bomb':
+      fields.bomb = { angle: tool.angle, power: tool.power }
+      break
     case 'pass':
       fields.pass = true
       break
@@ -341,6 +366,9 @@ function validationFailureReason(call: ToolCall, conditions: TurnConditions): st
   }
   if (call.tool.kind === 'move' && call.tool.distance > conditions.moveBudgetRemaining) {
     return `Movement budget exceeded: ${conditions.moveBudgetRemaining} remaining, requested ${call.tool.distance}`
+  }
+  if (call.tool.kind === 'fire_bomb' && conditions.bombsRemaining <= 0) {
+    return 'No bombs remaining'
   }
   return 'Umpire validation failed'
 }
@@ -395,6 +423,29 @@ function resolveAction(
       break
     }
 
+    case 'fire_bomb': {
+      const bombResult = fireBomb(state, config, tankId, tool.angle, tool.power)
+      newState = bombResult.newState
+      result = bombResult.result
+      if (result.kind === 'splash' || result.kind === 'miss') {
+        // The bomb is spent whether or not it connected
+        newState = {
+          ...newState,
+          tanks: newState.tanks.map((t) =>
+            t.id === tankId
+              ? { ...t, bombsRemaining: Math.max(0, (t.bombsRemaining ?? 0) - 1) }
+              : t),
+        }
+      }
+      if (result.kind === 'splash') {
+        for (const casualty of result.casualties) {
+          const damageResult = applyDamage(newState, casualty.targetId, tankId, casualty.damage)
+          newState = damageResult.newState
+        }
+      }
+      break
+    }
+
     case 'pass':
     case 'look':
     case 'known_map':
@@ -408,7 +459,7 @@ function resolveAction(
   return { newState, result, moveCost }
 }
 
-function getActionKind(toolCall: ToolCall): 'move' | 'flare' | 'shell' | 'pass' | 'invalid' | 'observation' {
+function getActionKind(toolCall: ToolCall): 'move' | 'flare' | 'shell' | 'bomb' | 'pass' | 'invalid' | 'observation' {
   switch (toolCall.tool.kind) {
     case 'move':
       return 'move'
@@ -416,6 +467,8 @@ function getActionKind(toolCall: ToolCall): 'move' | 'flare' | 'shell' | 'pass' 
       return 'flare'
     case 'fire_shell':
       return 'shell'
+    case 'fire_bomb':
+      return 'bomb'
     case 'look':
     case 'known_map':
       return 'observation'
@@ -606,6 +659,7 @@ export async function runMatch(
       const conditions: TurnConditions = {
         remainingActions: runner.remainingActions,
         moveBudgetRemaining: runner.remainingMoveBudget,
+        bombsRemaining: runner.state.tanks.find((t) => t.id === currentTank.id)?.bombsRemaining ?? 0,
         invalidStreak: runner.invalidStreak,
         isDoubleMode: config.actionEconomy === 'double',
       }
@@ -615,7 +669,7 @@ export async function runMatch(
       const exceedsPerMoveLimit =
         call.tool.kind === 'move' && call.tool.distance > maxPerMove
       const isOffensiveCall =
-        call.tool.kind === 'fire_flare' || call.tool.kind === 'fire_shell'
+        call.tool.kind === 'fire_flare' || call.tool.kind === 'fire_shell' || call.tool.kind === 'fire_bomb'
       const repeatsOffensiveAction = isOffensiveCall && offensiveActionTaken
       const isValid =
         !exceedsPerMoveLimit &&
@@ -706,7 +760,7 @@ export async function runMatch(
       }
     }
 
-    const agentResult = await agents[runner.playerCursor].takeTurn(worldview, TOOLS, executeTool)
+    const agentResult = await agents[runner.playerCursor].takeTurn(worldview, buildTools(config), executeTool)
     delete log.liveState
     const isStructuredResult = !Array.isArray(agentResult)
     const toolCalls = isStructuredResult ? agentResult.toolCalls : agentResult

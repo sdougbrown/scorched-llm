@@ -56,6 +56,10 @@ export const MatchConfigSchema = z.object({
   }),
   actionEconomy: z.enum(['single', 'double']).default('double'),
   moveMax: z.number().int().min(1).optional(),
+  bomb: z.object({
+    uses: z.number().int().min(1),
+    maxRange: z.number().int().min(1),
+  }).optional(),
   shell: z.object({
     maxRange: z.number().int().min(1),
     apexHeight: z.number(),

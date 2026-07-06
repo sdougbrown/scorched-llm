@@ -58,6 +58,13 @@ export function buildSystemPrompt(config: MatchConfig, label: string): string {
     `  - ${backtick}angle${backtick}: Number in degrees, clockwise from north (0=N, 90=E, 180=S, 270=W).`,
     `  - ${backtick}power${backtick}: Number representing range in cells (1 to ${shellMaxRange}).`,
     '',
+    ...(config.bomb ? [
+      `- ${backtick}fire_bomb${backtick}: Lob a bomb that detonates on impact and damages EVERY living tank within ${config.fog.flareRadius / 2} cells of the impact — including you if you are too close. Same flight arc as a shell; obstacles block it.`,
+      `  - ${backtick}angle${backtick}: Number in degrees, clockwise from north.`,
+      `  - ${backtick}power${backtick}: Number representing range in cells (1 to ${config.bomb.maxRange}).`,
+      `  - LIMITED SUPPLY: ${config.bomb.uses} per match. Counts as your one offensive action for the turn (you cannot also fire a shell or flare).`,
+      '',
+    ] : []),
     `- ${backtick}pass${backtick}: Skip your turn.`,
     `- ${backtick}look${backtick}: Refresh your local scan (no action cost).`,
     `- ${backtick}known_map${backtick}: View all cells you have previously revealed (no action cost).`,
