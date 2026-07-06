@@ -26,6 +26,7 @@ import { createMimoAgent } from '../match/mimo-agent.js'
 import { createStepAgent } from '../match/step-agent.js'
 import { createGptOssAgent } from '../match/gpt-oss-agent.js'
 import { createNorthAgent } from '../match/north-agent.js'
+import { createQwen35BAgent } from '../match/qwen35b-agent.js'
 import { runMatch } from '../match/orchestration.js'
 import { createModel } from '../model/factory.js'
 import { ModelBackedTankAgent } from '../model/tank-agent.js'
@@ -276,7 +277,11 @@ export async function runBatch(argv: string[], hooks: CliRunHooks = {}): Promise
           case 'step': return createStepAgent(tankId)
           case 'gpt-oss': return createGptOssAgent(tankId)
           case 'north': return createNorthAgent(tankId)
+          case 'qwen35b': return createQwen35BAgent(tankId)
           default: return createConservativeAgent(tankId)
+        }
+        if (p.scripted === 'qwen35b') {
+          return createQwen35BAgent(tankId)
         }
         return createConservativeAgent(tankId)
       }
