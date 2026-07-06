@@ -14,6 +14,7 @@ import { createGpt54Agent } from '../match/gpt-5.4-agent.js'
 import { createGpt55Agent } from '../match/gpt-5.5-agent.js'
 import { createGeminiAgent } from '../match/gemini-agent.js'
 import { createKimiAgent } from '../match/kimi-agent.js'
+import { createMinimaxAgent } from '../match/minimax-agent.js'
 import { runMatch } from '../match/orchestration.js'
 import { alwaysPassAgent } from '../match/fake-agents.js'
 import { aggregateLogs } from './aggregate.js'
@@ -213,6 +214,7 @@ export async function runExhibition(argv: string[]): Promise<void> {
           mapWidth: config.map.width,
           mapHeight: config.map.height,
         })
+        case 'minimax': return createMinimaxAgent(tankId)
         default: return createConservativeAgent(tankId)
       }
       if (p.scripted === 'kimi') {
