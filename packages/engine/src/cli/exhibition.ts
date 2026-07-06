@@ -3,7 +3,7 @@ import { resolve, join } from 'node:path'
 import { type PlayerSpec } from '../config/schema.js'
 import { DEFAULT_SEED_COUNT, PRESETS, SEED_SUITE, type PresetName } from '../config/presets.js'
 import { VERSION } from '../index.js'
-import { createAggressiveAgent, createConservativeAgent } from '../match/scripted-agents.js'
+import { createAggressiveAgent, createConservativeAgent, createQwen27BAgent } from '../match/scripted-agents.js'
 import { runMatch } from '../match/orchestration.js'
 import { alwaysPassAgent } from '../match/fake-agents.js'
 import { aggregateLogs } from './aggregate.js'
@@ -11,7 +11,7 @@ import { SYSTEM_PROMPT_VERSION } from '../model/system-prompt.js'
 
 interface RosterPlayer {
   label: string
-  scripted: 'aggressive' | 'conservative'
+  scripted: 'aggressive' | 'conservative' | 'qwen-27b'
 }
 
 interface BatchEntry {
@@ -175,8 +175,11 @@ export async function runExhibition(argv: string[]): Promise<void> {
       const tankId = `tank-${i}`
       if (p.scripted === 'aggressive') {
         return createAggressiveAgent(tankId)
+      } else if (p.scripted === 'conservative') {
+        return createConservativeAgent(tankId)
+      } else {
+        return createQwen27BAgent(tankId)
       }
-      return createConservativeAgent(tankId)
     })
 
     const progressLabels = entry.players.map((p) => p.label).join(' vs ')
