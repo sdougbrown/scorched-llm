@@ -7,7 +7,7 @@ import { runMatch } from '../match/orchestration.js'
 import { createModel } from '../model/factory.js'
 import { ModelBackedTankAgent } from '../model/tank-agent.js'
 import { buildSystemPrompt } from '../model/system-prompt.js'
-import { createAggressiveAgent, createConservativeAgent } from '../match/scripted-agents.js'
+import { createAggressiveAgent, createConservativeAgent, createNemotronAgent } from '../match/scripted-agents.js'
 import { runBatch } from './batch.js'
 import { runAggregate } from './aggregate.js'
 import { runExhibition } from './exhibition.js'
@@ -95,12 +95,12 @@ export async function runCli(argv: string[], hooks: CliRunHooks = {}): Promise<v
         })
         const systemPrompt = buildSystemPrompt(config, p.label)
         return new ModelBackedTankAgent(p.label, model, systemPrompt, config.maxToolCallsPerTurn)
-      } else if (p.scripted) {
-        if (p.scripted === 'aggressive') {
-          return createAggressiveAgent(p.label)
-        } else {
-          return createConservativeAgent(p.label)
-        }
+      } else if (p.scripted === 'nemotron') {
+        return createNemotronAgent(p.label)
+      } else if (p.scripted === 'aggressive') {
+        return createAggressiveAgent(p.label)
+      } else {
+        return createConservativeAgent(p.label)
       }
     }
     return alwaysPassAgent(p.label)

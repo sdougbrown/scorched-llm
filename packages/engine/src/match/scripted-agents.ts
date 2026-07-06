@@ -260,3 +260,5 @@ export function createConservativeAgent(
     },
   }
 }
+
+export { createNemotronAgent } from './nemotron-agent.js'
