@@ -54,8 +54,8 @@ const ENTRANTS = [
   { label: 'Gemma', scripted: 'gemma' },
   { label: 'GPT-5.5', scripted: 'gpt-5.5' },
   { label: 'Opus 4.8', scripted: 'opus' },
-  { label: 'TBD-1', scripted: null }, // ← season-two entrant, fill me in
-  { label: 'TBD-2', scripted: null }, // ← season-two entrant, fill me in
+  { label: 'North', scripted: 'north' },
+  { label: 'Qwen-35B', scripted: 'qwen35b' },
 ]
 
 // ---------------------------------------------------------------------------
