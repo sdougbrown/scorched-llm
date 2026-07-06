@@ -21,6 +21,7 @@ import { createKimiAgent } from '../match/kimi-agent.js'
 import { createMinimaxAgent } from '../match/minimax-agent.js'
 import { createGemmaAgent } from '../match/gemma-agent.js'
 import { createFableFreshAgent } from '../match/fable-fresh-agent.js'
+import { createSonnet5bAgent } from '../match/sonnet-5b-agent.js'
 import { runBatch } from './batch.js'
 import { runAggregate } from './aggregate.js'
 import { runExhibition } from './exhibition.js'
@@ -154,6 +155,8 @@ export async function runCli(argv: string[], hooks: CliRunHooks = {}): Promise<v
           return createGemmaAgent(p.label)
         } else if (p.scripted === 'fable-fresh') {
           return createFableFreshAgent(p.label, config)
+        } else if (p.scripted === 'sonnet-5b') {
+          return createSonnet5bAgent(p.label)
         } else {
           return createConservativeAgent(p.label)
         }

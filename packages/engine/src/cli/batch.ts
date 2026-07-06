@@ -17,6 +17,7 @@ import { createKimiAgent } from '../match/kimi-agent.js'
 import { createMinimaxAgent } from '../match/minimax-agent.js'
 import { createGemmaAgent } from '../match/gemma-agent.js'
 import { createFableFreshAgent } from '../match/fable-fresh-agent.js'
+import { createSonnet5bAgent } from '../match/sonnet-5b-agent.js'
 import { runMatch } from '../match/orchestration.js'
 import { createModel } from '../model/factory.js'
 import { ModelBackedTankAgent } from '../model/tank-agent.js'
@@ -258,9 +259,13 @@ export async function runBatch(argv: string[], hooks: CliRunHooks = {}): Promise
           case 'minimax': return createMinimaxAgent(tankId)
         case 'gemma': return createGemmaAgent(tankId)
         case 'fable-fresh': return createFableFreshAgent(tankId, config)
+        case 'sonnet-5b': return createSonnet5bAgent(tankId)
           case 'gemma': return createGemmaAgent(tankId)
         case 'fable-fresh': return createFableFreshAgent(tankId, config)
+        case 'sonnet-5b': return createSonnet5bAgent(tankId)
           case 'fable-fresh': return createFableFreshAgent(tankId, config)
+        case 'sonnet-5b': return createSonnet5bAgent(tankId)
+          case 'sonnet-5b': return createSonnet5bAgent(tankId)
           default: return createConservativeAgent(tankId)
         }
       }

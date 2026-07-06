@@ -6,7 +6,12 @@ import { DIRECTION_DELTAS, euclidean } from '../geometry/coords.js'
 import { supercover } from '../geometry/supercover.js'
 
 /**
- * Sonnet-4.6 — a heuristic tank built by reverse-engineering the engine's
+ * Sonnet-5b — second independent Sonnet 5 build of the same brief (originally
+ * mislabeled sonnet-4.6; the run turned out to be Sonnet 5). Kept as a
+ * within-model consistency sample alongside sonnet-agent.ts. Mechanically
+ * renamed only — no tactical changes.
+ *
+ * A heuristic tank built by reverse-engineering the engine's
  * combat math rather than by pattern-matching worldview snapshots.
  *
  * Key exploited facts (see resolution/shell.ts, worldview/build.ts):
@@ -490,7 +495,7 @@ function simpleTurn(memory: Sonnet46Memory, wv: WorldView): ToolCall[] {
  * press/retreat after every shot, and adaptive learning of this match's
  * maxRange/moveMax caps from live engine feedback.
  */
-export function createSonnet46Agent(
+export function createSonnet5bAgent(
   tankId: string,
   lastKnownEnemyPos?: Coordinate,
   lastSeenTurn?: number,
@@ -508,7 +513,7 @@ export function createSonnet46Agent(
   }
 
   return {
-    name: `sonnet-4-6-${tankId}`,
+    name: `sonnet-5b-${tankId}`,
     messages: [] as AgentMessage[],
     takeTurn: async (
       worldview: WorldView,
