@@ -12,6 +12,7 @@ import { createSonnetAgent } from '../match/sonnet-agent.js'
 import { createOpusAgent, opusOptionsFromConfig } from '../match/opus-agent.js'
 import { createGpt54Agent } from '../match/gpt-5.4-agent.js'
 import { createGpt55Agent } from '../match/gpt-5.5-agent.js'
+import { createGeminiAgent } from '../match/gemini-agent.js'
 import { runMatch } from '../match/orchestration.js'
 import { alwaysPassAgent } from '../match/fake-agents.js'
 import { aggregateLogs } from './aggregate.js'
@@ -202,6 +203,7 @@ export async function runExhibition(argv: string[]): Promise<void> {
           flareRadius: config.fog.flareRadius,
         })
         case 'gpt-5.5': return createGpt55Agent(tankId)
+        case 'gemini': return createGeminiAgent(tankId)
         default: return createConservativeAgent(tankId)
       }
     })
