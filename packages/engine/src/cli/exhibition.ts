@@ -5,6 +5,7 @@ import { DEFAULT_SEED_COUNT, PRESETS, SEED_SUITE, type PresetName } from '../con
 import { VERSION } from '../index.js'
 import { createFableAgent } from '../match/fable-agent.js'
 import { createGlmAgent } from '../match/glm-agent.js'
+import { createQwen27BAgent } from '../match/qwen-agent.js'
 import { createAggressiveAgent, createConservativeAgent, createDeepSeekAgent } from '../match/scripted-agents.js'
 import { runMatch } from '../match/orchestration.js'
 import { alwaysPassAgent } from '../match/fake-agents.js'
@@ -13,7 +14,7 @@ import { SYSTEM_PROMPT_VERSION } from '../model/system-prompt.js'
 
 interface RosterPlayer {
   label: string
-  scripted: 'aggressive' | 'conservative' | 'fable' | 'glm' | 'deepseek'
+  scripted: 'aggressive' | 'conservative' | 'fable' | 'glm' | 'deepseek' | 'qwen-27b'
 }
 
 interface BatchEntry {
@@ -177,6 +178,9 @@ export async function runExhibition(argv: string[]): Promise<void> {
       const tankId = `tank-${i}`
       if (p.scripted === 'aggressive') {
         return createAggressiveAgent(tankId)
+      }
+      if (p.scripted === 'qwen-27b') {
+        return createQwen27BAgent(tankId)
       }
       if (p.scripted === 'deepseek') {
         return createDeepSeekAgent(tankId)

@@ -9,6 +9,7 @@ import { ModelBackedTankAgent } from '../model/tank-agent.js'
 import { buildSystemPrompt } from '../model/system-prompt.js'
 import { createFableAgent } from '../match/fable-agent.js'
 import { createGlmAgent } from '../match/glm-agent.js'
+import { createQwen27BAgent } from '../match/qwen-agent.js'
 import { createAggressiveAgent, createConservativeAgent, createDeepSeekAgent } from '../match/scripted-agents.js'
 import { runBatch } from './batch.js'
 import { runAggregate } from './aggregate.js'
@@ -111,6 +112,8 @@ export async function runCli(argv: string[], hooks: CliRunHooks = {}): Promise<v
           })
         } else if (p.scripted === 'deepseek') {
           return createDeepSeekAgent(p.label)
+        } else if (p.scripted === 'qwen-27b') {
+          return createQwen27BAgent(p.label)
         } else {
           return createConservativeAgent(p.label)
         }
