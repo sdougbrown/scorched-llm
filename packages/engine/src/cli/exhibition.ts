@@ -21,6 +21,7 @@ import { createSonnet5bAgent } from '../match/sonnet-5b-agent.js'
 import { createNemotronAgent } from '../match/nemotron-agent.js'
 import { createSonnet46Agent } from '../match/sonnet-4.6-agent.js'
 import { createDeepSeekProAgent } from '../match/deepseek-pro-agent.js'
+import { createOpus46Agent } from '../match/opus-4.6-agent.js'
 import { runMatch } from '../match/orchestration.js'
 import { alwaysPassAgent } from '../match/fake-agents.js'
 import { aggregateLogs } from './aggregate.js'
@@ -202,10 +203,14 @@ export async function runExhibition(argv: string[]): Promise<void> {
           mapHeight: config.map.height,
         })
         case 'deepseek': return createDeepSeekAgent(tankId)
+        case 'deepseek-pro': return createDeepSeekProAgent(tankId)
         case 'qwen-27b': return createQwen27BAgent(tankId)
         case 'haiku': return createHaikuAgent(tankId)
         case 'sonnet': return createSonnetAgent(tankId, config)
+        case 'sonnet-5b': return createSonnet5bAgent(tankId)
+        case 'sonnet-4.6': return createSonnet46Agent(tankId)
         case 'opus': return createOpusAgent(tankId, opusOptionsFromConfig(config))
+        case 'opus-4.6': return createOpus46Agent(tankId)
         case 'gpt-5.4': return createGpt54Agent(tankId, {
           shellMaxRange: config.shell.maxRange,
           moveMax: config.moveMax ?? config.fog.flareRadius,
@@ -223,18 +228,9 @@ export async function runExhibition(argv: string[]): Promise<void> {
         case 'minimax': return createMinimaxAgent(tankId)
         case 'gemma': return createGemmaAgent(tankId)
         case 'fable-fresh': return createFableFreshAgent(tankId, config)
-        case 'sonnet-5b': return createSonnet5bAgent(tankId)
         case 'nemotron': return createNemotronAgent(tankId)
-        case 'sonnet-4.6': return createSonnet46Agent(tankId)
-        case 'deepseek-pro': return createDeepSeekProAgent(tankId)
         default: return createConservativeAgent(tankId)
       }
-      if (p.scripted === 'aggressive') {
-        return createAggressiveAgent(tankId)
-      } else if (p.scripted === 'conservative') {
-        return createConservativeAgent(tankId)
-      }
-      return createDeepSeekProAgent(tankId)
     })
 
     const progressLabels = entry.players.map((p) => p.label).join(' vs ')

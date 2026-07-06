@@ -25,3 +25,4 @@ export * from './match/gemini-agent.js'
 
 export * from './match/nemotron-agent.js'
 export * from './match/sonnet-4.6-agent.js'
+export * from './match/opus-4.6-agent.js'

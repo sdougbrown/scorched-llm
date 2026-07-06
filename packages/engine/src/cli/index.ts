@@ -25,6 +25,7 @@ import { createFableFreshAgent } from '../match/fable-fresh-agent.js'
 import { createSonnet5bAgent } from '../match/sonnet-5b-agent.js'
 import { createSonnet46Agent } from '../match/sonnet-4.6-agent.js'
 import { createDeepSeekProAgent } from '../match/deepseek-pro-agent.js'
+import { createOpus46Agent } from '../match/opus-4.6-agent.js'
 import { runBatch } from './batch.js'
 import { runAggregate } from './aggregate.js'
 import { runExhibition } from './exhibition.js'
@@ -166,6 +167,8 @@ export async function runCli(argv: string[], hooks: CliRunHooks = {}): Promise<v
           return createSonnet46Agent(p.label)
         } else if (p.scripted === 'deepseek-pro') {
           return createDeepSeekProAgent(p.label)
+        } else if (p.scripted === 'opus-4.6') {
+          return createOpus46Agent(p.label)
         } else {
           return createConservativeAgent(p.label)
         }
