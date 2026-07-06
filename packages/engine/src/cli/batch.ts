@@ -12,7 +12,7 @@ import type { CliRunHooks } from './hooks.js'
 
 interface RosterPlayer {
   label: string
-  scripted?: 'aggressive' | 'conservative'
+  scripted?: 'aggressive' | 'conservative' | 'step'
   model?: {
     name: string
     baseURL: string

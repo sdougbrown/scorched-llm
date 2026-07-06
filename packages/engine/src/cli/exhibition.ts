@@ -4,6 +4,23 @@ import { type PlayerSpec } from '../config/schema.js'
 import { DEFAULT_SEED_COUNT, PRESETS, SEED_SUITE, type PresetName } from '../config/presets.js'
 import { VERSION } from '../index.js'
 import { createAggressiveAgent, createConservativeAgent } from '../match/scripted-agents.js'
+import { createStepAgent } from '../match/step-agent.js'
+
+interface RosterPlayer {
+  label: string
+  scripted: 'aggressive' | 'conservative' | 'step'
+  model?: {
+    name: string
+    baseURL: string
+    protocol?: string
+    apiKeyEnv?: string
+    model: string
+    headers?: Record<string, string>
+    extraBody?: Record<string, unknown>
+    parameters?: Record<string, unknown>
+    pricing?: { inputPerMillionUsd: number; outputPerMillionUsd: number }
+  }
+}
 import { runMatch } from '../match/orchestration.js'
 import { alwaysPassAgent } from '../match/fake-agents.js'
 import { aggregateLogs } from './aggregate.js'
@@ -11,7 +28,18 @@ import { SYSTEM_PROMPT_VERSION } from '../model/system-prompt.js'
 
 interface RosterPlayer {
   label: string
-  scripted: 'aggressive' | 'conservative'
+  scripted: 'aggressive' | 'conservative' | 'step'
+  model?: {
+    name: string
+    baseURL: string
+    protocol?: string
+    apiKeyEnv?: string
+    model: string
+    headers?: Record<string, string>
+    extraBody?: Record<string, unknown>
+    parameters?: Record<string, unknown>
+    pricing?: { inputPerMillionUsd: number; outputPerMillionUsd: number }
+  }
 }
 
 interface BatchEntry {
@@ -171,13 +199,16 @@ export async function runExhibition(argv: string[]): Promise<void> {
     const playerSpecs: PlayerSpec[] = entry.players.map(rosterToPlayerSpec)
     const config = PRESETS[preset](entry.seed, playerSpecs)
 
-    const agents = entry.players.map((p, i) => {
-      const tankId = `tank-${i}`
-      if (p.scripted === 'aggressive') {
-        return createAggressiveAgent(tankId)
-      }
+  const agents = entry.players.map((p, i) => {
+    const tankId = `tank-${i}`
+    if (p.scripted === 'aggressive') {
+      return createAggressiveAgent(tankId)
+    }
+    if (p.scripted === 'conservative') {
       return createConservativeAgent(tankId)
-    })
+    }
+    return createStepAgent(tankId)
+  })
 
     const progressLabels = entry.players.map((p) => p.label).join(' vs ')
     console.log(`Running match ${matchId}/${total}: ${preset} seed ${entry.seed} (seat: ${progressLabels})`)
