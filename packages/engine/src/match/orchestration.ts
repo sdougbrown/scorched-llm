@@ -100,6 +100,33 @@ function createInitialGameState(config: MatchConfig, rng: Rng): GameState {
           occupied.add(`${position.x},${position.y}`)
           placed = true
         }
+      } else if (config.spawnStrategy === 'spread') {
+        // Best-candidate sampling: draw K seeded candidates and keep the one
+        // farthest from every tank already placed, so spawns spread evenly
+        // instead of clustering the way plain rejection sampling does.
+        const CANDIDATES = 24
+        let best: { x: number; y: number; score: number } | null = null
+        let attempts = 0
+        while (attempts < CANDIDATES * 10 && (best == null || attempts < CANDIDATES)) {
+          const x = rng.int(0, width - 1)
+          const y = rng.int(0, height - 1)
+          attempts++
+          if (terrain[y][x].terrain !== 'open' || occupied.has(`${x},${y}`)) continue
+          let score = Infinity
+          for (const key of occupied) {
+            const [ox, oy] = key.split(',').map(Number)
+            const d = (x - ox) ** 2 + (y - oy) ** 2
+            if (d < score) score = d
+          }
+          if (best == null || score > best.score) {
+            best = { x, y, score }
+          }
+        }
+        if (best) {
+          position = { x: best.x, y: best.y }
+          occupied.add(`${position.x},${position.y}`)
+          placed = true
+        }
       } else {
         let attempts = 0
         while (attempts < 200) {
