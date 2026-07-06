@@ -27,7 +27,7 @@ export const PlayerSpecSchema = z.object({
     z.literal('random'),
   ]),
   model: ModelSpecSchema.optional(),
-  scripted: z.enum(['aggressive', 'conservative']).optional(),
+  scripted: z.enum(['aggressive', 'conservative', 'sonnet-4.6']).optional(),
 }).refine(
   (data) => (data.model !== undefined) !== (data.scripted !== undefined),
   { message: 'PlayerSpec must have exactly one of: model, scripted' }
