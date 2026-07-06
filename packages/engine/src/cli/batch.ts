@@ -8,6 +8,7 @@ import { createGlmAgent } from '../match/glm-agent.js'
 import { createQwen27BAgent } from '../match/qwen-agent.js'
 import { createAggressiveAgent, createConservativeAgent, createDeepSeekAgent } from '../match/scripted-agents.js'
 import { createHaikuAgent } from '../match/haiku-agent.js'
+import { createSonnetAgent } from '../match/sonnet-agent.js'
 import { runMatch } from '../match/orchestration.js'
 import { createModel } from '../model/factory.js'
 import { ModelBackedTankAgent } from '../model/tank-agent.js'
@@ -16,7 +17,7 @@ import type { CliRunHooks } from './hooks.js'
 
 interface RosterPlayer {
   label: string
-  scripted?: 'aggressive' | 'conservative' | 'fable' | 'glm' | 'deepseek' | 'qwen-27b' | 'haiku'
+  scripted?: 'aggressive' | 'conservative' | 'fable' | 'glm' | 'deepseek' | 'qwen-27b' | 'haiku' | 'sonnet'
   model?: {
     name: string
     baseURL: string
@@ -239,6 +240,8 @@ export async function runBatch(argv: string[], hooks: CliRunHooks = {}): Promise
             mapWidth: config.map.width,
             mapHeight: config.map.height,
           })
+        } else if (p.scripted === 'sonnet') {
+          return createSonnetAgent(tankId, config)
         }
         return createConservativeAgent(tankId)
       }

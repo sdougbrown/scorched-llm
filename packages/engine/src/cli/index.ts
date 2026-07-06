@@ -12,6 +12,7 @@ import { createGlmAgent } from '../match/glm-agent.js'
 import { createQwen27BAgent } from '../match/qwen-agent.js'
 import { createAggressiveAgent, createConservativeAgent, createDeepSeekAgent } from '../match/scripted-agents.js'
 import { createHaikuAgent } from '../match/haiku-agent.js'
+import { createSonnetAgent } from '../match/sonnet-agent.js'
 import { runBatch } from './batch.js'
 import { runAggregate } from './aggregate.js'
 import { runExhibition } from './exhibition.js'
@@ -117,6 +118,8 @@ export async function runCli(argv: string[], hooks: CliRunHooks = {}): Promise<v
           return createQwen27BAgent(p.label)
         } else if (p.scripted === 'haiku') {
           return createHaikuAgent(p.label)
+        } else if (p.scripted === 'sonnet') {
+          return createSonnetAgent(p.label, config)
         } else {
           return createConservativeAgent(p.label)
         }

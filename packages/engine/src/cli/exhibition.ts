@@ -8,6 +8,7 @@ import { createGlmAgent } from '../match/glm-agent.js'
 import { createQwen27BAgent } from '../match/qwen-agent.js'
 import { createAggressiveAgent, createConservativeAgent, createDeepSeekAgent } from '../match/scripted-agents.js'
 import { createHaikuAgent } from '../match/haiku-agent.js'
+import { createSonnetAgent } from '../match/sonnet-agent.js'
 import { runMatch } from '../match/orchestration.js'
 import { alwaysPassAgent } from '../match/fake-agents.js'
 import { aggregateLogs } from './aggregate.js'
@@ -15,7 +16,7 @@ import { SYSTEM_PROMPT_VERSION } from '../model/system-prompt.js'
 
 interface RosterPlayer {
   label: string
-  scripted: 'aggressive' | 'conservative' | 'fable' | 'glm' | 'deepseek' | 'qwen-27b' | 'haiku'
+  scripted: 'aggressive' | 'conservative' | 'fable' | 'glm' | 'deepseek' | 'qwen-27b' | 'haiku' | 'sonnet'
 }
 
 interface BatchEntry {
@@ -198,6 +199,8 @@ export async function runExhibition(argv: string[]): Promise<void> {
           mapWidth: config.map.width,
           mapHeight: config.map.height,
         })
+      } else if (p.scripted === 'sonnet') {
+        return createSonnetAgent(tankId, config)
       }
       return createConservativeAgent(tankId)
     })
