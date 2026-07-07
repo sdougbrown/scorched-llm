@@ -13,6 +13,8 @@ function formatTool(tool: Tool): string {
       return `fire_flare(direction=${tool.direction}, range=${tool.range})`
     case 'fire_shell':
       return `fire_shell(angle=${tool.angle}, power=${tool.power})`
+    case 'fire_bomb':
+      return `fire_bomb(angle=${tool.angle}, power=${tool.power})`
     case 'pass':
       return 'pass()'
   }
@@ -34,6 +36,8 @@ function formatResult(result: ActionResult): string {
       return `revealed (${result.cells.length} cells)`
     case 'invalid':
       return `invalid: ${result.reason}`
+    case 'splash':
+      return `splash at (${result.impact.x}, ${result.impact.y}) — ${result.casualties.map((c) => `${c.targetId} -${c.damage}`).join(', ') || 'no casualties'}`
   }
 }
 
@@ -48,6 +52,7 @@ const RESULT_BEM_CLASS: Record<ActionResult['kind'], string> = {
   miss: '--miss',
   'obstacle-hit': '--miss',
   hit: '--hit',
+  splash: '--hit',
   revealed: '',
   invalid: '--error',
 } as const
