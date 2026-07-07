@@ -1,6 +1,6 @@
 import type { MatchConfig } from '../config/schema.js'
 
-export const SYSTEM_PROMPT_VERSION = 'v3'
+export const SYSTEM_PROMPT_VERSION = 'v4'
 
 export function buildSystemPrompt(config: MatchConfig, label: string): string {
   const actionBudget = config.actionEconomy === 'double' ? 2 : 1
@@ -71,7 +71,7 @@ export function buildSystemPrompt(config: MatchConfig, label: string): string {
     '',
     '## Example Turn (mechanics only, not a recommended strategy)',
     '',
-    `A turn can combine multiple tool calls up to your action budget. For example, with a ${actionBudget}-action budget you could call ${backtick}move${backtick} (direction: "E", distance: 3) followed by ${backtick}fire_shell${backtick} (angle: 90, power: 5) to spend both actions in one turn. What you actually choose to do each turn — scout, reposition, fire, or some combination — is up to you.`,
+    `A turn can combine multiple tool calls up to your action budget. For example, with a ${actionBudget}-action budget you could call ${backtick}move${backtick} (direction: "E", distance: 3) followed by ${backtick}fire_shell${backtick} (angle: 90, power: 5) to spend both actions in one turn.${config.bomb ? ` Or, when enemies are clustered or dug in behind cover: ${backtick}move${backtick} (direction: "N", distance: 2) followed by ${backtick}fire_bomb${backtick} (angle: 45, power: 6) to splash everything near the impact.` : ''} What you actually choose to do each turn — scout, reposition, fire, or some combination — is up to you.`,
     '',
     '## Notes',
     '',
