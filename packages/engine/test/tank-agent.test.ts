@@ -47,6 +47,18 @@ const TOOLS: ToolSpec[] = [
 const SYSTEM_PROMPT = 'You are a Scorched tank agent. Act strategically.'
 
 describe('ModelBackedTankAgent', () => {
+  it('normalizes fire_bomb tool calls instead of rejecting them', async () => {
+    const response = makeResponse({
+      toolCalls: [{ id: 'c1', name: 'fire_bomb', arguments: { angle: 90, power: 4 } }],
+    })
+    const model = new FakeModel([response, makeResponse({ assistantText: 'done' })])
+    const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT, 3)
+    const calls = await agent.takeTurn(makeWorldView({ turn: 1 }), TOOLS)
+    const list = Array.isArray(calls) ? calls : calls.toolCalls
+    expect(list.some((c) => c.tool.kind === 'fire_bomb' && c.tool.angle === 90 && c.tool.power === 4)).toBe(true)
+  })
+
+
   describe('message history', () => {
     it('starts with a system message', () => {
       const agent = new ModelBackedTankAgent('tank-1', new FakeModel([]), SYSTEM_PROMPT, 3)
