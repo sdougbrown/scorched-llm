@@ -24,8 +24,8 @@ function makeConfig(overrides: Partial<MatchConfig>): MatchConfig {
 }
 
 describe('SYSTEM_PROMPT_VERSION', () => {
-  it('is v3', () => {
-    expect(SYSTEM_PROMPT_VERSION).toBe('v3')
+  it('is v4', () => {
+    expect(SYSTEM_PROMPT_VERSION).toBe('v4')
   })
 })
 
