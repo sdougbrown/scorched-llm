@@ -820,6 +820,16 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@scorched-llm/bots@workspace:^, @scorched-llm/bots@workspace:packages/bots":
+  version: 0.0.0-use.local
+  resolution: "@scorched-llm/bots@workspace:packages/bots"
+  dependencies:
+    "@scorched-llm/engine": "workspace:^"
+    typescript: "npm:^5.8.0"
+    vitest: "npm:^3.0.0"
+  languageName: unknown
+  linkType: soft
+
 "@scorched-llm/engine@workspace:^, @scorched-llm/engine@workspace:packages/engine":
   version: 0.0.0-use.local
   resolution: "@scorched-llm/engine@workspace:packages/engine"
@@ -840,6 +850,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@scorched-llm/runner@workspace:packages/runner"
   dependencies:
+    "@scorched-llm/bots": "workspace:^"
     "@scorched-llm/engine": "workspace:^"
     "@scorched-llm/spectator": "workspace:^"
     "@types/node": "npm:^22.0.0"
