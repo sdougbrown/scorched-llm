@@ -7,30 +7,7 @@ import { runMatch } from '../match/orchestration.js'
 import { createModel } from '../model/factory.js'
 import { ModelBackedTankAgent } from '../model/tank-agent.js'
 import { buildSystemPrompt } from '../model/system-prompt.js'
-import { createFableAgent } from '../match/fable-agent.js'
-import { createGlmAgent } from '../match/glm-agent.js'
-import { createQwen27BAgent } from '../match/qwen-agent.js'
-import { createAggressiveAgent, createConservativeAgent, createDeepSeekAgent } from '../match/scripted-agents.js'
-import { createNemotronAgent } from '../match/nemotron-agent.js'
-import { createHaikuAgent } from '../match/haiku-agent.js'
-import { createSonnetAgent } from '../match/sonnet-agent.js'
-import { createOpusAgent, opusOptionsFromConfig } from '../match/opus-agent.js'
-import { createGpt54Agent } from '../match/gpt-5.4-agent.js'
-import { createGpt55Agent } from '../match/gpt-5.5-agent.js'
-import { createGeminiAgent } from '../match/gemini-agent.js'
-import { createKimiAgent } from '../match/kimi-agent.js'
-import { createMinimaxAgent } from '../match/minimax-agent.js'
-import { createGemmaAgent } from '../match/gemma-agent.js'
-import { createFableFreshAgent } from '../match/fable-fresh-agent.js'
-import { createSonnet5bAgent } from '../match/sonnet-5b-agent.js'
-import { createSonnet46Agent } from '../match/sonnet-4.6-agent.js'
-import { createDeepSeekProAgent } from '../match/deepseek-pro-agent.js'
-import { createOpus46Agent } from '../match/opus-4.6-agent.js'
-import { createMimoAgent } from '../match/mimo-agent.js'
-import { createStepAgent } from '../match/step-agent.js'
-import { createGptOssAgent } from '../match/gpt-oss-agent.js'
-import { createNorthAgent } from '../match/north-agent.js'
-import { createQwen35BAgent } from '../match/qwen35b-agent.js'
+import { resolveScriptedAgent } from './scripted-factory.js'
 import { runBatch } from './batch.js'
 import { runAggregate } from './aggregate.js'
 import { runExhibition } from './exhibition.js'
@@ -61,7 +38,7 @@ export async function runCli(argv: string[], hooks: CliRunHooks = {}): Promise<v
   }
 
   if (argv[0] === 'exhibition') {
-    return runExhibition(argv.slice(1))
+    return runExhibition(argv.slice(1), hooks)
   }
 
   if (argv[0] === 'batch') {
@@ -130,76 +107,8 @@ export async function runCli(argv: string[], hooks: CliRunHooks = {}): Promise<v
         })
         const systemPrompt = buildSystemPrompt(config, p.label)
         return new ModelBackedTankAgent(p.label, model, systemPrompt, config.maxToolCallsPerTurn)
-      } else       if (p.scripted) {
-        if (p.scripted === 'aggressive') {
-          return createAggressiveAgent(p.label)
-        } else if (p.scripted === 'fable') {
-          return createFableAgent(p.label, config)
-        } else if (p.scripted === 'glm') {
-          return createGlmAgent(p.label, {
-            shellMaxRange: config.shell.maxRange,
-            moveMax: config.moveMax ?? config.fog.flareRadius,
-            mapWidth: config.map.width,
-            mapHeight: config.map.height,
-          })
-        } else if (p.scripted === 'kimi') {
-          return createKimiAgent(p.label, {
-            shellMaxRange: config.shell.maxRange,
-            moveMax: config.moveMax ?? config.fog.flareRadius,
-            mapWidth: config.map.width,
-            mapHeight: config.map.height,
-          })
-        } else if (p.scripted === 'deepseek') {
-          return createDeepSeekAgent(p.label)
-        } else if (p.scripted === 'qwen-27b') {
-          return createQwen27BAgent(p.label)
-        } else if (p.scripted === 'haiku') {
-          return createHaikuAgent(p.label)
-        } else if (p.scripted === 'sonnet') {
-          return createSonnetAgent(p.label, config)
-        } else if (p.scripted === 'opus') {
-          return createOpusAgent(p.label, opusOptionsFromConfig(config))
-        } else if (p.scripted === 'gpt-5.4') {
-          return createGpt54Agent(p.label, {
-            shellMaxRange: config.shell.maxRange,
-            moveMax: config.moveMax ?? config.fog.flareRadius,
-            flareMaxRange: config.fog.flareRadius,
-            flareRadius: config.fog.flareRadius,
-          })
-        } else if (p.scripted === 'gpt-5.5') {
-          return createGpt55Agent(p.label)
-        } else if (p.scripted === 'gemini') {
-          return createGeminiAgent(p.label)
-        } else if (p.scripted === 'minimax') {
-          return createMinimaxAgent(p.label)
-        } else if (p.scripted === 'gemma') {
-          return createGemmaAgent(p.label)
-        } else if (p.scripted === 'fable-fresh') {
-          return createFableFreshAgent(p.label, config)
-        } else if (p.scripted === 'sonnet-5b') {
-          return createSonnet5bAgent(p.label)
-        } else if (p.scripted === 'nemotron') {
-          return createNemotronAgent(p.label)
-        } else if (p.scripted === 'sonnet-4.6') {
-          return createSonnet46Agent(p.label)
-        } else if (p.scripted === 'deepseek-pro') {
-          return createDeepSeekProAgent(p.label)
-        } else if (p.scripted === 'opus-4.6') {
-          return createOpus46Agent(p.label)
-        } else if (p.scripted === 'mimo') {
-          return createMimoAgent(p.label)
-        } else if (p.scripted === 'step') {
-          return createStepAgent(p.label)
-        } else if (p.scripted === 'gpt-oss') {
-          return createGptOssAgent(p.label)
-        } else if (p.scripted === 'north') {
-          return createNorthAgent(p.label)
-        } else if (p.scripted === 'qwen35b') {
-          return createQwen35BAgent(p.label)
-        } else if (p.scripted === 'conservative') {
-          return createConservativeAgent(p.label)
-        }
-        throw new Error(`Unknown scripted type: ${p.scripted}`)
+      } else if (p.scripted) {
+        return resolveScriptedAgent(p.scripted, p.label, config, hooks)
       }
     }
     return alwaysPassAgent(p.label)

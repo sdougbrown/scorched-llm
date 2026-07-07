@@ -20,7 +20,9 @@ export const ModelSpecSchema = z.object({
 })
 export type ModelSpec = z.infer<typeof ModelSpecSchema>
 
-export const ScriptedAgentSchema = z.enum(['aggressive', 'conservative', 'fable', 'glm', 'deepseek', 'qwen-27b', 'haiku', 'sonnet', 'opus', 'gpt-5.4', 'gpt-5.5', 'gemini', 'kimi', 'minimax', 'gemma', 'fable-fresh', 'sonnet-5b', 'nemotron', 'sonnet-4.6', 'deepseek-pro', 'opus-4.6', 'mimo', 'step', 'gpt-oss', 'north', 'qwen35b'])
+// Scripted names are validated at agent-construction time (the engine ships
+// only aggressive/conservative; entrants register via @scorched-llm/bots).
+export const ScriptedAgentSchema = z.string().min(1)
 export type ScriptedAgentKind = z.infer<typeof ScriptedAgentSchema>
 
 export const PlayerSpecSchema = z.object({

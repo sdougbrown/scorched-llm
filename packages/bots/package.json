@@ -1,11 +1,8 @@
 {
-  "name": "@scorched-llm/runner",
+  "name": "@scorched-llm/bots",
   "version": "0.0.0",
   "license": "MIT",
   "type": "module",
-  "bin": {
-    "scorched-llm": "./bin/runner-cli.js"
-  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -14,30 +11,23 @@
       "import": "./dist/index.js"
     }
   },
-  "files": [
-    "bin",
-    "dist"
-  ],
   "scripts": {
-    "build": "tsc && node scripts/copy-spectator.js",
+    "build": "tsc",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "eslint ."
   },
   "dependencies": {
-    "@scorched-llm/bots": "workspace:^",
     "@scorched-llm/engine": "workspace:^"
   },
   "devDependencies": {
-    "@scorched-llm/spectator": "workspace:^",
-    "@types/node": "^22.0.0",
     "typescript": "^5.8.0",
     "vitest": "^3.0.0"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/scorched-llm/scorched-llm.git",
-    "directory": "packages/runner"
+    "directory": "packages/bots"
   },
   "publishConfig": {
     "access": "public"

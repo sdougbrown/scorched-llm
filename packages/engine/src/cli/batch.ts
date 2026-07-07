@@ -3,34 +3,11 @@ import { resolve } from 'node:path'
 import { type PlayerSpec, type ScriptedAgentKind } from '../config/schema.js'
 import { DEFAULT_SEED_COUNT, PRESETS, SEED_SUITE, type PresetName } from '../config/presets.js'
 import { alwaysPassAgent } from '../match/fake-agents.js'
-import { createFableAgent } from '../match/fable-agent.js'
-import { createGlmAgent } from '../match/glm-agent.js'
-import { createQwen27BAgent } from '../match/qwen-agent.js'
-import { createAggressiveAgent, createConservativeAgent, createDeepSeekAgent } from '../match/scripted-agents.js'
-import { createHaikuAgent } from '../match/haiku-agent.js'
-import { createSonnetAgent } from '../match/sonnet-agent.js'
-import { createOpusAgent, opusOptionsFromConfig } from '../match/opus-agent.js'
-import { createGpt54Agent } from '../match/gpt-5.4-agent.js'
-import { createGpt55Agent } from '../match/gpt-5.5-agent.js'
-import { createGeminiAgent } from '../match/gemini-agent.js'
-import { createKimiAgent } from '../match/kimi-agent.js'
-import { createMinimaxAgent } from '../match/minimax-agent.js'
-import { createGemmaAgent } from '../match/gemma-agent.js'
-import { createFableFreshAgent } from '../match/fable-fresh-agent.js'
-import { createSonnet5bAgent } from '../match/sonnet-5b-agent.js'
-import { createNemotronAgent } from '../match/nemotron-agent.js'
-import { createSonnet46Agent } from '../match/sonnet-4.6-agent.js'
-import { createDeepSeekProAgent } from '../match/deepseek-pro-agent.js'
-import { createOpus46Agent } from '../match/opus-4.6-agent.js'
-import { createMimoAgent } from '../match/mimo-agent.js'
-import { createStepAgent } from '../match/step-agent.js'
-import { createGptOssAgent } from '../match/gpt-oss-agent.js'
-import { createNorthAgent } from '../match/north-agent.js'
-import { createQwen35BAgent } from '../match/qwen35b-agent.js'
 import { runMatch } from '../match/orchestration.js'
 import { createModel } from '../model/factory.js'
 import { ModelBackedTankAgent } from '../model/tank-agent.js'
 import { buildSystemPrompt } from '../model/system-prompt.js'
+import { resolveScriptedAgent } from './scripted-factory.js'
 import type { CliRunHooks } from './hooks.js'
 
 interface RosterPlayer {
@@ -237,53 +214,7 @@ export async function runBatch(argv: string[], hooks: CliRunHooks = {}): Promise
     const agents = entry.players.map((p, i) => {
       const tankId = `tank-${i}`
       if (p.scripted) {
-        switch (p.scripted) {
-          case 'aggressive': return createAggressiveAgent(tankId)
-          case 'fable': return createFableAgent(tankId, config)
-          case 'glm': return createGlmAgent(tankId, {
-            shellMaxRange: config.shell.maxRange,
-            moveMax: config.moveMax ?? config.fog.flareRadius,
-            mapWidth: config.map.width,
-            mapHeight: config.map.height,
-          })
-          case 'deepseek': return createDeepSeekAgent(tankId)
-          case 'deepseek-pro': return createDeepSeekProAgent(tankId)
-          case 'qwen-27b': return createQwen27BAgent(tankId)
-          case 'haiku': return createHaikuAgent(tankId)
-          case 'sonnet': return createSonnetAgent(tankId, config)
-          case 'sonnet-5b': return createSonnet5bAgent(tankId)
-          case 'sonnet-4.6': return createSonnet46Agent(tankId)
-          case 'opus': return createOpusAgent(tankId, opusOptionsFromConfig(config))
-          case 'opus-4.6': return createOpus46Agent(tankId)
-          case 'gpt-5.4': return createGpt54Agent(tankId, {
-            shellMaxRange: config.shell.maxRange,
-            moveMax: config.moveMax ?? config.fog.flareRadius,
-            flareMaxRange: config.fog.flareRadius,
-            flareRadius: config.fog.flareRadius,
-          })
-          case 'gpt-5.5': return createGpt55Agent(tankId)
-          case 'gemini': return createGeminiAgent(tankId)
-          case 'kimi': return createKimiAgent(tankId, {
-            shellMaxRange: config.shell.maxRange,
-            moveMax: config.moveMax ?? config.fog.flareRadius,
-            mapWidth: config.map.width,
-            mapHeight: config.map.height,
-          })
-          case 'minimax': return createMinimaxAgent(tankId)
-          case 'gemma': return createGemmaAgent(tankId)
-          case 'fable-fresh': return createFableFreshAgent(tankId, config)
-          case 'nemotron': return createNemotronAgent(tankId)
-          case 'mimo': return createMimoAgent(tankId)
-          case 'step': return createStepAgent(tankId)
-          case 'gpt-oss': return createGptOssAgent(tankId)
-          case 'north': return createNorthAgent(tankId)
-          case 'qwen35b': return createQwen35BAgent(tankId)
-          default: return createConservativeAgent(tankId)
-        }
-        if (p.scripted === 'qwen35b') {
-          return createQwen35BAgent(tankId)
-        }
-        return createConservativeAgent(tankId)
+        return resolveScriptedAgent(p.scripted, tankId, config, hooks)
       }
       if (p.model && live) {
         const model = createModel(p.model, {

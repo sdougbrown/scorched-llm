@@ -18,6 +18,7 @@
   "references": [
     { "path": "packages/engine" },
     { "path": "packages/adapters" },
+    { "path": "packages/bots" },
     { "path": "packages/spectator" },
     { "path": "packages/runner" }
   ]

@@ -3,7 +3,12 @@
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src",
-    "composite": true
+    "composite": true,
+    "paths": {
+      "@scorched-llm/engine": [
+        "../engine/src/index.ts"
+      ]
+    }
   },
   "include": [
     "src"
@@ -11,9 +16,6 @@
   "references": [
     {
       "path": "../engine"
-    },
-    {
-      "path": "../bots"
     }
   ]
 }

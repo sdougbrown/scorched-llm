@@ -44,7 +44,7 @@ describe('runExhibition', () => {
 
     const files = readdirSync(outDir)
     const matchFiles = files.filter((f) => f.startsWith('match-') && f.endsWith('.json'))
-    expect(matchFiles.length).toBe(12)
+    expect(matchFiles.length).toBe(4)
   })
 
   it('creates batch-manifest.json', async () => {
@@ -96,9 +96,9 @@ describe('runExhibition', () => {
     expect(Array.isArray(info.seedsUsed)).toBe(true)
     expect(info.seedsUsed.length).toBe(2)
     expect(Array.isArray(info.roster)).toBe(true)
-    expect(info.roster.length).toBe(3)
-    expect(info.totalMatches).toBe(12)
-    expect(info.completedMatches).toBe(12)
+    expect(info.roster.length).toBe(2)
+    expect(info.totalMatches).toBe(4)
+    expect(info.completedMatches).toBe(4)
   })
 
   it('exhibition-info.json lists all required version fields', async () => {
@@ -162,7 +162,7 @@ describe('runExhibition', () => {
     ])
 
     const info = JSON.parse(readFileSync(join(outDir, 'exhibition-info.json'), 'utf-8'))
-    expect(info.roster.length).toBe(6)
+    expect(info.roster.length).toBe(4)
     expect(info.type).toBe('scripted')
   })
 
