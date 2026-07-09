@@ -8,6 +8,7 @@ import { createGemmaAgent } from './gemma-agent.js'
 import { createGlmAgent } from './glm-agent.js'
 import { createGpt54Agent } from './gpt-5.4-agent.js'
 import { createGpt55Agent } from './gpt-5.5-agent.js'
+import { createGpt56SolAgent, gpt56SolOptionsFromConfig } from './gpt-5-6-sol-agent.js'
 import { createGptOssAgent } from './gpt-oss-agent.js'
 import { createHaikuAgent } from './haiku-agent.js'
 import { createKimiAgent } from './kimi-agent.js'
@@ -33,6 +34,7 @@ export * from './gemma-agent.js'
 export * from './glm-agent.js'
 export * from './gpt-5.4-agent.js'
 export * from './gpt-5.5-agent.js'
+export * from './gpt-5-6-sol-agent.js'
 export * from './gpt-oss-agent.js'
 export * from './haiku-agent.js'
 export * from './kimi-agent.js'
@@ -90,6 +92,8 @@ export const SCRIPTED_AGENTS: Record<string, (tankId: string, config: MatchConfi
     flareRadius: config.fog.flareRadius,
   }),
   'gpt-5.5': (tankId) => createGpt55Agent(tankId),
+  'gpt-5-6-sol': (tankId, config) =>
+    createGpt56SolAgent(tankId, gpt56SolOptionsFromConfig(config)),
   'gpt-oss': (tankId) => createGptOssAgent(tankId),
   gemini: (tankId) => createGeminiAgent(tankId),
   gemma: (tankId) => createGemmaAgent(tankId),
