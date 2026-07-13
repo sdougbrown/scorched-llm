@@ -1,6 +1,6 @@
 import type { MatchConfig } from '../config/schema.js'
 
-export const SYSTEM_PROMPT_VERSION = 'v3'
+export const SYSTEM_PROMPT_VERSION = 'v4'
 
 export function buildSystemPrompt(config: MatchConfig, label: string): string {
   const actionBudget = config.actionEconomy === 'double' ? 2 : 1
@@ -58,13 +58,20 @@ export function buildSystemPrompt(config: MatchConfig, label: string): string {
     `  - ${backtick}angle${backtick}: Number in degrees, clockwise from north (0=N, 90=E, 180=S, 270=W).`,
     `  - ${backtick}power${backtick}: Number representing range in cells (1 to ${shellMaxRange}).`,
     '',
+    ...(config.bomb ? [
+      `- ${backtick}fire_bomb${backtick}: Lob a bomb that detonates on impact and damages EVERY living tank within ${config.fog.flareRadius / 2} cells of the impact — including you if you are too close. Same flight arc as a shell; obstacles block it.`,
+      `  - ${backtick}angle${backtick}: Number in degrees, clockwise from north.`,
+      `  - ${backtick}power${backtick}: Number representing range in cells (1 to ${config.bomb.maxRange}).`,
+      `  - LIMITED SUPPLY: ${config.bomb.uses} per match. Counts as your one offensive action for the turn (you cannot also fire a shell or flare).`,
+      '',
+    ] : []),
     `- ${backtick}pass${backtick}: Skip your turn.`,
     `- ${backtick}look${backtick}: Refresh your local scan (no action cost).`,
     `- ${backtick}known_map${backtick}: View all cells you have previously revealed (no action cost).`,
     '',
     '## Example Turn (mechanics only, not a recommended strategy)',
     '',
-    `A turn can combine multiple tool calls up to your action budget. For example, with a ${actionBudget}-action budget you could call ${backtick}move${backtick} (direction: "E", distance: 3) followed by ${backtick}fire_shell${backtick} (angle: 90, power: 5) to spend both actions in one turn. What you actually choose to do each turn — scout, reposition, fire, or some combination — is up to you.`,
+    `A turn can combine multiple tool calls up to your action budget. For example, with a ${actionBudget}-action budget you could call ${backtick}move${backtick} (direction: "E", distance: 3) followed by ${backtick}fire_shell${backtick} (angle: 90, power: 5) to spend both actions in one turn.${config.bomb ? ` Or, when enemies are clustered or dug in behind cover: ${backtick}move${backtick} (direction: "N", distance: 2) followed by ${backtick}fire_bomb${backtick} (angle: 45, power: 6) to splash everything near the impact.` : ''} What you actually choose to do each turn — scout, reposition, fire, or some combination — is up to you.`,
     '',
     '## Notes',
     '',

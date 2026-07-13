@@ -8,6 +8,8 @@ export interface TankState {
   maxHp: number
   alive: boolean
   facing: number
+  /** Bombs left this match; present only when config.bomb is set. */
+  bombsRemaining?: number
   damageDealt: number
   hitsLanded: number
 }

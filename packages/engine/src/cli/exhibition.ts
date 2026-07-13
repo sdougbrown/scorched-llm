@@ -1,17 +1,30 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync, readdirSync } from 'node:fs'
 import { resolve, join } from 'node:path'
-import { type PlayerSpec } from '../config/schema.js'
+import { type PlayerSpec, type ScriptedAgentKind } from '../config/schema.js'
 import { DEFAULT_SEED_COUNT, PRESETS, SEED_SUITE, type PresetName } from '../config/presets.js'
 import { VERSION } from '../index.js'
-import { createAggressiveAgent, createConservativeAgent } from '../match/scripted-agents.js'
+
 import { runMatch } from '../match/orchestration.js'
+import { resolveScriptedAgent } from './scripted-factory.js'
+import type { CliRunHooks } from './hooks.js'
 import { alwaysPassAgent } from '../match/fake-agents.js'
 import { aggregateLogs } from './aggregate.js'
 import { SYSTEM_PROMPT_VERSION } from '../model/system-prompt.js'
 
 interface RosterPlayer {
   label: string
-  scripted: 'aggressive' | 'conservative'
+  scripted: ScriptedAgentKind
+  model?: {
+    name: string
+    baseURL: string
+    protocol?: string
+    apiKeyEnv?: string
+    model: string
+    headers?: Record<string, string>
+    extraBody?: Record<string, unknown>
+    parameters?: Record<string, unknown>
+    pricing?: { inputPerMillionUsd: number; outputPerMillionUsd: number }
+  }
 }
 
 interface BatchEntry {
@@ -104,7 +117,7 @@ function buildSchedule(preset: PresetName, seeds: number[], players: RosterPlaye
   return schedule
 }
 
-export async function runExhibition(argv: string[]): Promise<void> {
+export async function runExhibition(argv: string[], hooks: CliRunHooks = {}): Promise<void> {
   let presetName: string | undefined
   let outDir: string | undefined
   let seedsCount: number | undefined
@@ -173,10 +186,7 @@ export async function runExhibition(argv: string[]): Promise<void> {
 
     const agents = entry.players.map((p, i) => {
       const tankId = `tank-${i}`
-      if (p.scripted === 'aggressive') {
-        return createAggressiveAgent(tankId)
-      }
-      return createConservativeAgent(tankId)
+      return resolveScriptedAgent(p.scripted, tankId, config, hooks)
     })
 
     const progressLabels = entry.players.map((p) => p.label).join(' vs ')

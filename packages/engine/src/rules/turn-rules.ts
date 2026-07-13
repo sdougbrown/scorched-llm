@@ -5,18 +5,21 @@ import type { Direction } from '../types/coords.js'
 export type MoveAction = { direction: Direction; distance: number }
 export type FlareAction = { direction: Direction; range: number }
 export type ShellAction = { angle: number; power: number }
+export type BombAction = { angle: number; power: number }
 
 export type TurnFields = {
   move1: FieldDef<MoveAction | null>
   move2: FieldDef<MoveAction | null>
   flare: FieldDef<FlareAction | null>
   shell: FieldDef<ShellAction | null>
+  bomb: FieldDef<BombAction | null>
   pass: FieldDef<boolean>
 }
 
 export interface TurnConditions extends Record<string, unknown> {
   remainingActions: number
   moveBudgetRemaining: number
+  bombsRemaining: number
   invalidStreak: number
   isDoubleMode: boolean
 }
@@ -26,7 +29,8 @@ function hasAnyAction(values: FieldValues<TurnFields>): boolean {
     values.move1 != null ||
     values.move2 != null ||
     values.flare != null ||
-    values.shell != null
+    values.shell != null ||
+    values.bomb != null
   )
 }
 
@@ -69,6 +73,7 @@ export function createTurnRules(
       move2: { default: null as MoveAction | null },
       flare: { default: null as FlareAction | null },
       shell: { default: null as ShellAction | null },
+      bomb: { default: null as BombAction | null },
       pass: { default: false },
     },
     rules: [
@@ -79,6 +84,7 @@ export function createTurnRules(
       oneOf('offense', {
         flare: ['flare'],
         shell: ['shell'],
+        bomb: ['bomb'],
       }),
 
       // Pass only when no other action is taken
@@ -98,6 +104,12 @@ export function createTurnRules(
       }),
       enabledWhen('shell', actionLimitPred, {
         reason: 'Action limit reached',
+      }),
+      enabledWhen('bomb', actionLimitPred, {
+        reason: 'Action limit reached',
+      }),
+      enabledWhen('bomb', (_values, conditions) => conditions.bombsRemaining > 0, {
+        reason: 'No bombs remaining',
       }),
 
       // Cumulative movement budget
@@ -119,6 +131,9 @@ export function createTurnRules(
         reason: 'Three consecutive invalid calls',
       }),
       enabledWhen('shell', threeStrikePred, {
+        reason: 'Three consecutive invalid calls',
+      }),
+      enabledWhen('bomb', threeStrikePred, {
         reason: 'Three consecutive invalid calls',
       }),
       enabledWhen('pass', threeStrikePred, {

@@ -60,6 +60,18 @@ describe('parseMatchConfig', () => {
     expect(config.lethality).toEqual({ hitsToKill: 2 })
   })
 
+  it('accepts the gpt-5.5 scripted tank', () => {
+    const config = parseMatchConfig({
+      ...validRaw,
+      players: [
+        { label: 'Alpha', startPosition: { x: 10, y: 10 }, scripted: 'gpt-5.5' },
+        { label: 'Beta', startPosition: { x: 90, y: 40 }, scripted: 'aggressive' },
+      ],
+    })
+
+    expect(config.players[0].scripted).toBe('gpt-5.5')
+  })
+
   it('applies actionEconomy default when missing', () => {
     const config = parseMatchConfig({ ...validRaw, actionEconomy: undefined, lethality: { hitsToKill: 2 } })
     expect(config.actionEconomy).toBe('double')

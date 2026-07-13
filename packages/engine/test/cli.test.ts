@@ -117,6 +117,12 @@ describe('CLI', () => {
     }
   })
 
+  it('--seed overrides the config seed', async () => {
+    await runCli(['--config', configPath, '--out', outPath, '--seed', '777'])
+    const log = JSON.parse(readFileSync(outPath, 'utf-8'))
+    expect(log.config.seed).toBe(777)
+  })
+
   describe('CLI live mode', () => {
     it('creates model-backed agents when --live flag is passed', async () => {
       // This test verifies the CLI accepts --live and creates agents

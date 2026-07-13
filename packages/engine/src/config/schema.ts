@@ -20,6 +20,11 @@ export const ModelSpecSchema = z.object({
 })
 export type ModelSpec = z.infer<typeof ModelSpecSchema>
 
+// Scripted names are validated at agent-construction time (the engine ships
+// only aggressive/conservative; entrants register via @scorched-llm/bots).
+export const ScriptedAgentSchema = z.string().min(1)
+export type ScriptedAgentKind = z.infer<typeof ScriptedAgentSchema>
+
 export const PlayerSpecSchema = z.object({
   label: z.string(),
   startPosition: z.union([
@@ -27,7 +32,7 @@ export const PlayerSpecSchema = z.object({
     z.literal('random'),
   ]),
   model: ModelSpecSchema.optional(),
-  scripted: z.enum(['aggressive', 'conservative']).optional(),
+  scripted: ScriptedAgentSchema.optional(),
 }).refine(
   (data) => (data.model !== undefined) !== (data.scripted !== undefined),
   { message: 'PlayerSpec must have exactly one of: model, scripted' }
@@ -37,7 +42,7 @@ export type PlayerSpec = z.infer<typeof PlayerSpecSchema>
 export const MatchConfigSchema = z.object({
   rulesVersion: z.string(),
   seed: z.number().int(),
-  spawnStrategy: z.enum(['random', 'symmetric']).optional(),
+  spawnStrategy: z.enum(['random', 'symmetric', 'spread']).optional(),
   map: z.object({
     width: z.number().int().min(1),
     height: z.number().int().min(1),
@@ -53,6 +58,10 @@ export const MatchConfigSchema = z.object({
   }),
   actionEconomy: z.enum(['single', 'double']).default('double'),
   moveMax: z.number().int().min(1).optional(),
+  bomb: z.object({
+    uses: z.number().int().min(1),
+    maxRange: z.number().int().min(1),
+  }).optional(),
   shell: z.object({
     maxRange: z.number().int().min(1),
     apexHeight: z.number(),

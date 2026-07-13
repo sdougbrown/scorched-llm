@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url'
 import type { MatchLog } from '@scorched-llm/engine'
 import { runCli, type CliRunProgress } from '@scorched-llm/engine/cli'
+import { SCRIPTED_AGENTS } from '@scorched-llm/bots'
 import { startLiveServer } from './live-server.js'
 import { startReplayServer } from './replay-server.js'
 
@@ -42,7 +43,7 @@ export async function runRunnerCli(argv: string[]): Promise<void> {
 
   const servePort = parseServePort(argv)
   if (!servePort) {
-    await runCli(argv)
+    await runCli(argv, { scriptedAgents: SCRIPTED_AGENTS })
     return
   }
 
@@ -68,6 +69,7 @@ export async function runRunnerCli(argv: string[]): Promise<void> {
   })
 
   await runCli(withoutServe(argv), {
+    scriptedAgents: SCRIPTED_AGENTS,
     onLiveLog(log, nextProgress) {
       progress = nextProgress
       logRef.current = structuredClone(log)

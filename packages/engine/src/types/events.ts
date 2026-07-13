@@ -19,6 +19,8 @@ export interface WorldView {
   }>
   inEnemyFlare: Array<{ firerId: string; expiryTurn: number }>
   remainingActions: number
+  /** Bombs left this match; present only when bombs are enabled. */
+  bombsRemaining?: number
   turn: number
   isMyTurn: boolean
   aliveEnemyCount: number

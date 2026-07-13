@@ -7,7 +7,7 @@ import { runMatch } from '../match/orchestration.js'
 import { createModel } from '../model/factory.js'
 import { ModelBackedTankAgent } from '../model/tank-agent.js'
 import { buildSystemPrompt } from '../model/system-prompt.js'
-import { createAggressiveAgent, createConservativeAgent } from '../match/scripted-agents.js'
+import { resolveScriptedAgent } from './scripted-factory.js'
 import { runBatch } from './batch.js'
 import { runAggregate } from './aggregate.js'
 import { runExhibition } from './exhibition.js'
@@ -38,7 +38,7 @@ export async function runCli(argv: string[], hooks: CliRunHooks = {}): Promise<v
   }
 
   if (argv[0] === 'exhibition') {
-    return runExhibition(argv.slice(1))
+    return runExhibition(argv.slice(1), hooks)
   }
 
   if (argv[0] === 'batch') {
@@ -62,15 +62,23 @@ export async function runCli(argv: string[], hooks: CliRunHooks = {}): Promise<v
   let configPath: string | undefined
   let outPath: string | undefined
   let live = false
+  let seedOverride: number | undefined
 
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--config' && argv[i + 1]) {
       configPath = resolve(argv[++i])
     } else if (argv[i] === '--out' && argv[i + 1]) {
       outPath = resolve(argv[++i])
+    } else if (argv[i] === '--seed' && argv[i + 1]) {
+      seedOverride = parseInt(argv[++i], 10)
     } else if (argv[i] === '--live') {
       live = true
     }
+  }
+
+  if (seedOverride !== undefined && !Number.isInteger(seedOverride)) {
+    console.error('Error: --seed must be an integer')
+    process.exit(1)
   }
 
   if (!configPath) {
@@ -85,7 +93,11 @@ export async function runCli(argv: string[], hooks: CliRunHooks = {}): Promise<v
   mkdirSync(dirname(outPath), { recursive: true })
 
   const raw = readFileSync(configPath, 'utf-8')
-  const config = parseMatchConfig(JSON.parse(raw))
+  const parsedRaw = JSON.parse(raw)
+  if (seedOverride !== undefined) {
+    parsedRaw.seed = seedOverride
+  }
+  const config = parseMatchConfig(parsedRaw)
 
   const agents = config.players.map((p) => {
     if (live) {
@@ -96,11 +108,7 @@ export async function runCli(argv: string[], hooks: CliRunHooks = {}): Promise<v
         const systemPrompt = buildSystemPrompt(config, p.label)
         return new ModelBackedTankAgent(p.label, model, systemPrompt, config.maxToolCallsPerTurn)
       } else if (p.scripted) {
-        if (p.scripted === 'aggressive') {
-          return createAggressiveAgent(p.label)
-        } else {
-          return createConservativeAgent(p.label)
-        }
+        return resolveScriptedAgent(p.scripted, p.label, config, hooks)
       }
     }
     return alwaysPassAgent(p.label)

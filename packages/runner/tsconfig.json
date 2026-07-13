@@ -6,8 +6,15 @@
     "composite": true,
     "tsBuildInfoFile": "./dist/.tsbuildinfo"
   },
-  "include": ["src"],
+  "include": [
+    "src"
+  ],
   "references": [
-    { "path": "../engine" }
+    {
+      "path": "../engine"
+    },
+    {
+      "path": "../bots"
+    }
   ]
 }

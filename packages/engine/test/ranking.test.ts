@@ -60,6 +60,20 @@ describe('computeMatchResult — last standing', () => {
   })
 })
 
+describe('computeMatchResult — last standing with many casualties', () => {
+  it('ranks dead tanks by damage dealt, not seat order', () => {
+    const state = createState([
+      { id: 't1', position: { x: 1, y: 1 }, hp: 0, maxHp: 2, alive: false, facing: 0, damageDealt: 0, hitsLanded: 0 },
+      { id: 't2', position: { x: 2, y: 2 }, hp: 0, maxHp: 2, alive: false, facing: 0, damageDealt: 3, hitsLanded: 3 },
+      { id: 't3', position: { x: 3, y: 3 }, hp: 2, maxHp: 2, alive: true, facing: 0, damageDealt: 1, hitsLanded: 1 },
+      { id: 't4', position: { x: 4, y: 4 }, hp: 0, maxHp: 2, alive: false, facing: 0, damageDealt: 1, hitsLanded: 1 },
+    ])
+    const result = computeMatchResult(state, config, 10)
+    expect(result.terminationReason).toBe('last-standing')
+    expect(result.placements.map((p) => p.tankId)).toEqual(['t3', 't2', 't4', 't1'])
+  })
+})
+
 describe('computeMatchResult — turn limit with casualties', () => {
   it('ranks living tanks above dead ones at the turn limit', () => {
     const state = createState([

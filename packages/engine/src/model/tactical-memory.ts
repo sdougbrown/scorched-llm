@@ -45,6 +45,8 @@ function formatCall(call: ToolCall): string {
       return `fire_flare(${call.tool.direction},${call.tool.range})`
     case 'fire_shell':
       return `fire_shell(angle=${call.tool.angle},power=${call.tool.power})`
+    case 'fire_bomb':
+      return `fire_bomb(angle=${call.tool.angle},power=${call.tool.power})`
     case 'look':
       return 'look()'
     case 'known_map':
@@ -70,6 +72,8 @@ function formatResult(result: ActionResult): string {
       return `hit:${result.targetId},damage=${result.damage}`
     case 'revealed':
       return `revealed:${result.cells.length}-cells`
+    case 'splash':
+      return `splash@(${result.impact.x},${result.impact.y}):${result.casualties.map((c) => c.targetId + '-' + c.damage).join(',')}`
   }
 }
 

@@ -16,6 +16,7 @@ const VALID_TOOL_NAMES = new Set<string>([
   'move',
   'fire_flare',
   'fire_shell',
+  'fire_bomb',
   'pass',
   'look',
   'known_map',
@@ -80,6 +81,20 @@ function normalizeToolCall(call: NormalizedToolCall): ToolCall | null {
         return null
       }
       return { id, tool: { kind: 'fire_shell', angle, power } }
+    }
+
+    case 'fire_bomb': {
+      const angle = args.angle
+      const power = args.power
+      if (
+        typeof angle !== 'number' ||
+        typeof power !== 'number' ||
+        !Number.isFinite(angle) ||
+        !Number.isFinite(power)
+      ) {
+        return null
+      }
+      return { id, tool: { kind: 'fire_bomb', angle, power } }
     }
 
     case 'pass':

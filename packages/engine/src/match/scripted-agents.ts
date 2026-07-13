@@ -2,7 +2,7 @@ import type { WorldView } from '../types/events.js'
 import type { ToolCall } from '../types/tool.js'
 import type { TankAgent, AgentMessage, ToolSpec } from './fake-agents.js'
 import type { Coordinate, Direction } from '../types/coords.js'
-import { euclidean, DIRECTION_DELTAS } from '../geometry/coords.js'
+import { euclidean, DIRECTION_DELTAS, manhattan } from '../geometry/coords.js'
 
 /** Persistent memory for a scripted agent — tracks last-known enemy position. */
 interface AgentMemory {

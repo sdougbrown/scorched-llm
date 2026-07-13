@@ -22,7 +22,10 @@ export function computeMatchResult(
           damageDealt: aliveTanks[0].damageDealt,
           hitsLanded: aliveTanks[0].hitsLanded,
         },
-        ...deadTanks.map((t, i) => ({
+        ...[...deadTanks]
+          .sort((a, b) =>
+            b.hp - a.hp || b.damageDealt - a.damageDealt || b.hitsLanded - a.hitsLanded)
+          .map((t, i) => ({
           tankId: t.id,
           rank: i + 2,
           hp: t.hp,

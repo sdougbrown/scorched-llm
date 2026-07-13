@@ -92,6 +92,40 @@ describe('runMatch — basic orchestration', () => {
     ])
   })
 
+  it('spread spawns space many tanks farther apart than plain random', async () => {
+    const makePlayers = (n: number) => Array.from({ length: n }, (_, i) => ({
+      label: `p${i + 1}`,
+      startPosition: 'random' as const,
+      scripted: 'conservative' as const,
+    }))
+    const base = {
+      map: { width: 40, height: 40, obstacleDensity: 0.12, generatorVersion: 'v1', obstacleHeight: 3 },
+      players: makePlayers(22),
+      turnLimit: 1,
+    }
+    const minPairwise = (tanks: Array<{ position: { x: number; y: number } }>) => {
+      let min = Infinity
+      for (let i = 0; i < tanks.length; i++) {
+        for (let j = i + 1; j < tanks.length; j++) {
+          const d = Math.hypot(
+            tanks[i].position.x - tanks[j].position.x,
+            tanks[i].position.y - tanks[j].position.y,
+          )
+          if (d < min) min = d
+        }
+      }
+      return min
+    }
+
+    const agents = () => base.players.map((player) => alwaysPassAgent(player.label))
+    const spread = await runMatch(makeConfig({ ...base, spawnStrategy: 'spread' }), agents())
+    const random = await runMatch(makeConfig({ ...base, spawnStrategy: 'random' }), agents())
+
+    const spreadMin = minPairwise(spread.log.initialState.tanks)
+    expect(spreadMin).toBeGreaterThanOrEqual(4)
+    expect(spreadMin).toBeGreaterThan(minPairwise(random.log.initialState.tanks))
+  })
+
   it('has correct player count in turns', async () => {
     const config = makeConfig({ turnLimit: 6 })
     const { log } = await runMatch(config, [alwaysPassAgent('p1'), alwaysPassAgent('p2')])
