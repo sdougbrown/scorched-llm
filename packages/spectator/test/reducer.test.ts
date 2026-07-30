@@ -94,6 +94,33 @@ describe('reduceToState', () => {
     expect(state.tanks[0].position).toEqual({ x: 0, y: 1 })
   })
 
+  it('reconstructs a compact v2 snapshot using the initial terrain', () => {
+    const initialState = makeValidLog().initialState
+    const log = makeValidLog({
+      schemaVersion: 'v2',
+      turns: [{
+        turn: 1, player: 'A',
+        actions: [makeAction({
+          snapshot: {
+            snapshotFormat: 'compact-v2',
+            turn: 1,
+            currentPlayerIndex: 0,
+            tanks: [{ ...initialState.tanks[0], position: { x: 1, y: 0 } }, initialState.tanks[1]],
+            flares: [],
+          },
+        })],
+        worldview: {
+          position: { x: 0, y: 0 }, hp: 2, facing: 0, localScan: [],
+          flaredCells: [], inEnemyFlare: [], remainingActions: 2, turn: 1, isMyTurn: true, aliveEnemyCount: 1,
+        },
+      }],
+    })
+
+    const state = reduceToState(log, 0, 0)
+    expect(state.tanks[0].position).toEqual({ x: 1, y: 0 })
+    expect(state.terrain).toEqual(initialState.terrain)
+  })
+
   it('reduces to end of match with snapshots', () => {
     const turn1Snapshot: GameState = {
       ...makeValidLog().initialState,

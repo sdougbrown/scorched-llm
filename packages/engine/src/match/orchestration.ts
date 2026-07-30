@@ -2,6 +2,7 @@ import type { GameState, TankState } from '../types/state.js'
 import type { ToolCall, ActionEvent, ActionResult } from '../types/tool.js'
 import type { MatchConfig } from '../config/schema.js'
 import type { MatchLog, MatchResult, MatchCheckpoint } from '../types/log.js'
+import { compactGameState } from '../types/log.js'
 import type { TankAgent, ToolSpec } from './fake-agents.js'
 import type { Rng } from '../rng/rng.js'
 import type { TurnConditions } from '../rules/turn-rules.js'
@@ -526,7 +527,7 @@ export function restoreFromCheckpoint(
   rng.restore(checkpoint.rngState)
 
   const log: MatchLog = {
-    schemaVersion: 'v1',
+    schemaVersion: 'v2',
     metadata: {
       matchId: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
@@ -570,7 +571,7 @@ export async function runMatch(
   const playerCount = config.players.length
 
   const log: MatchLog = {
-    schemaVersion: 'v1',
+    schemaVersion: 'v2',
     metadata: {
       matchId: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
@@ -690,7 +691,7 @@ export async function runMatch(
           kind: 'invalid',
           call,
           result,
-          snapshot: deepCloneGameState(runner.state),
+          snapshot: compactGameState(runner.state),
         })
         runner.invalidStreak++
         const currentWorldview = buildWorldView(
@@ -720,7 +721,7 @@ export async function runMatch(
         kind,
         call,
         result,
-        snapshot: deepCloneGameState(runner.state),
+        snapshot: compactGameState(runner.state),
       })
 
       const isObservation = kind === 'observation'
