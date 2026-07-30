@@ -3,6 +3,7 @@ import type { Cell } from '../types/coords.js'
 import type { MatchConfig } from '../config/schema.js'
 import type { TurnEvent } from '../types/events.js'
 import type { MatchLog } from '../types/log.js'
+import { reconstructGameState } from '../types/log.js'
 import { cellsInRadius } from '../geometry/coords.js'
 
 // --- Rendering helpers ---
@@ -194,10 +195,13 @@ export function renderState(
 
 /**
  * Render a turn event as a human-readable string.
+ *
+ * @param initialState - Full initial game state (needed to reconstruct compact v2 snapshots).
  */
 export function renderTurn(
   turn: TurnEvent,
   config: MatchConfig,
+  initialState?: GameState,
 ): string {
   const lines: string[] = []
 
@@ -265,16 +269,21 @@ export function renderTurn(
     }
   }
 
-  // State snapshot
-  lines.push('')
-  lines.push(renderState(turn.actions[0]?.snapshot ?? {
+  // State snapshot — reconstruct from compact if needed
+  const rawSnapshot = turn.actions[0]?.snapshot
+  const base = initialState ?? {
     turn: turn.turn,
     currentPlayerIndex: 0,
     tanks: [],
     flares: [],
     terrain: [],
     rulesVersion: config.rulesVersion,
-  }, config))
+  } satisfies GameState
+  const stateSnapshot = rawSnapshot == null
+    ? base
+    : reconstructGameState(rawSnapshot, base)
+  lines.push('')
+  lines.push(renderState(stateSnapshot, config))
 
   return lines.join('\n')
 }
@@ -291,7 +300,7 @@ export function renderMatch(log: MatchLog): string[] {
   results.push('')
 
   for (const turn of log.turns) {
-    results.push(renderTurn(turn, log.config))
+    results.push(renderTurn(turn, log.config, log.initialState))
   }
 
   // Footer — result

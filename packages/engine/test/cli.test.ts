@@ -45,7 +45,7 @@ describe('CLI', () => {
     expect(existsSync(outPath)).toBe(true)
     const content = readFileSync(outPath, 'utf-8')
     const log = JSON.parse(content)
-    expect(log.schemaVersion).toBe('v1')
+    expect(log.schemaVersion).toBe('v2')
     expect(log.metadata.matchId).toBeDefined()
     expect(Array.isArray(log.turns)).toBe(true)
     expect(log.result).toBeDefined()
@@ -143,7 +143,7 @@ describe('CLI', () => {
         expect(existsSync(outPath)).toBe(true)
         const content = readFileSync(outPath, 'utf-8')
         const log = JSON.parse(content)
-        expect(log.schemaVersion).toBe('v1')
+        expect(log.schemaVersion).toBe('v2')
         expect(log.result).toBeDefined()
       } finally {
         exitSpy.mockRestore()

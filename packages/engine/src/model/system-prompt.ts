@@ -78,6 +78,7 @@ export function buildSystemPrompt(config: MatchConfig, label: string): string {
     '- Remember enemy positions from previous turns — they may have moved.',
     '- If you are in an enemy flare (the worldview will warn you), you are visible to them.',
     '- Track flare expiry — information goes stale. Flares last only until your next turn.',
+    '- When your high-level plan changes, you may call `remember_strategy` with a short objective and expiry. It persists across history compaction, costs no arena action, and is not a substitute for observed facts.',
     `- In a double-action turn, moving twice can travel up to ${totalMoveMax} total cells but leaves no action for a flare or shell.`,
     '',
     '## Output',

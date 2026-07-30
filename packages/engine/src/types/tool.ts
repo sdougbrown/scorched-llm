@@ -1,5 +1,6 @@
 import type { Coordinate, Direction } from './coords.js'
 import type { GameState } from './state.js'
+import type { CompactGameState } from './log.js'
 
 /** Tool call the engine exposes to agents. */
 export type Tool =
@@ -33,5 +34,9 @@ export interface ActionEvent {
   kind: 'move' | 'flare' | 'shell' | 'bomb' | 'pass' | 'invalid' | 'observation'
   call: ToolCall
   result: ActionResult
-  snapshot: GameState
+  /**
+   * Full GameState (v1) or CompactGameState (v2+).
+   * Use reconstructGameState() to obtain a full state from a compact snapshot.
+   */
+  snapshot: GameState | CompactGameState
 }

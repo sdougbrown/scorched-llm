@@ -347,6 +347,13 @@ export function updateTracePanel(panel: HTMLElement, turn: TurnEvent, _tankId: s
     content.appendChild(details)
   }
 
+  if (trace.strategyUpdates && trace.strategyUpdates.length > 0) {
+    const strategy = document.createElement('pre')
+    strategy.className = 'trace-panel__assistant'
+    strategy.textContent = `Persisted strategy\n${trace.strategyUpdates.join('\n')}`
+    content.appendChild(strategy)
+  }
+
   // Assistant text
   if (trace.assistantText) {
     const pre = document.createElement('pre')

@@ -107,6 +107,33 @@ describe('ModelBackedTankAgent', () => {
       expect(assistant?.reasoningField).toBe('reasoning')
     })
 
+    it('retains a bounded self-authored strategy through history compaction', async () => {
+      const model = new FakeModel([
+        makeResponse({
+          finishReason: 'stop',
+          toolCalls: [{
+            id: 'strategy-1',
+            name: 'remember_strategy',
+            arguments: {
+              summary: 'Flare northeast, then sweep south if tank-2 is absent.',
+              expiresAfterTurns: 6,
+            },
+          }],
+        }),
+        ...Array.from({ length: 5 }, () => makeResponse()),
+      ])
+      const agent = new ModelBackedTankAgent('tank-1', model, SYSTEM_PROMPT, 3)
+
+      for (let turn = 1; turn <= 6; turn++) {
+        await agent.takeTurn(makeWorldView({ turn }), TOOLS)
+      }
+
+      const strategy = agent.messages.find((message) => message.contextKind === 'strategy')
+      expect(strategy?.role).toBe('user')
+      expect(strategy?.content).toContain('Flare northeast, then sweep south if tank-2 is absent.')
+      expect(strategy?.content).toContain('expires before T7')
+    })
+
     it('compacts old turns into deterministic tactical memory', async () => {
       const model = new FakeModel(Array.from({ length: 8 }, (_, index) => makeResponse({
         reasoningContent: `reasoning-${index + 1}`,

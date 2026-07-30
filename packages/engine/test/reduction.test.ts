@@ -3,6 +3,7 @@ import { runMatch } from '../src/match/orchestration.js'
 import { alwaysPassAgent } from '../src/match/fake-agents.js'
 
 import type { GameState } from '../src/types/state.js'
+import { reconstructGameState } from '../src/types/log.js'
 function compareStates(stateA: GameState, stateB: GameState): boolean {
   if (stateA.tanks.length !== stateB.tanks.length) return false
   for (let i = 0; i < stateA.tanks.length; i++) {
@@ -61,11 +62,15 @@ describe('reduction — state replay', () => {
     }
 
     const finalSnapshot = lastTurn.actions[lastTurn.actions.length - 1].snapshot
-    expect(finalSnapshot.tanks.length).toBe(2)
-    expect(finalSnapshot.turn).toBe(log.turns.length)
+    const finalState = reconstructGameState(finalSnapshot, log.initialState)
+    expect(finalSnapshot).toMatchObject({ snapshotFormat: 'compact-v2' })
+    expect(finalSnapshot).not.toHaveProperty('terrain')
+    expect(finalState.tanks.length).toBe(2)
+    expect(finalState.turn).toBe(log.turns.length)
+    expect(finalState.rulesVersion).toBe('v1')
 
     // Verify tanks are consistent with expected HP (pass-only agents don't deal damage)
-    for (const tank of finalSnapshot.tanks) {
+    for (const tank of finalState.tanks) {
       expect(tank.hp).toBe(tank.maxHp)
       expect(tank.alive).toBe(true)
     }
@@ -95,12 +100,15 @@ describe('reduction — state replay', () => {
     for (const turn of log.turns) {
       expect(turn.actions.length).toBeGreaterThan(0)
       const lastAction = turn.actions[turn.actions.length - 1]
-      expect(lastAction.snapshot.tanks.length).toBe(log.initialState.tanks.length)
-      expect(lastAction.snapshot.rulesVersion).toBe('v1')
+      const snapshot = reconstructGameState(lastAction.snapshot, log.initialState)
+      expect(lastAction.snapshot).toMatchObject({ snapshotFormat: 'compact-v2' })
+      expect(lastAction.snapshot).not.toHaveProperty('terrain')
+      expect(snapshot.tanks.length).toBe(log.initialState.tanks.length)
+      expect(snapshot.rulesVersion).toBe('v1')
 
       // All tanks should have consistent IDs across turns
       for (let i = 0; i < log.initialState.tanks.length; i++) {
-        expect(lastAction.snapshot.tanks[i].id).toBe(log.initialState.tanks[i].id)
+        expect(snapshot.tanks[i].id).toBe(log.initialState.tanks[i].id)
       }
     }
   })
@@ -135,7 +143,10 @@ describe('reduction — state replay', () => {
       const prevTurnLast = log.turns[i - 1].actions[log.turns[i - 1].actions.length - 1]
       const currTurnFirst = log.turns[i].actions[0]
 
-      expect(compareStates(prevTurnLast.snapshot, currTurnFirst.snapshot)).toBe(true)
+      expect(compareStates(
+        reconstructGameState(prevTurnLast.snapshot, log.initialState),
+        reconstructGameState(currTurnFirst.snapshot, log.initialState),
+      )).toBe(true)
     }
   })
 
@@ -164,7 +175,7 @@ describe('reduction — state replay', () => {
     let finalState: GameState = log.initialState
     for (const turn of log.turns) {
       if (turn.actions.length > 0) {
-        finalState = turn.actions[turn.actions.length - 1].snapshot
+        finalState = reconstructGameState(turn.actions[turn.actions.length - 1].snapshot, log.initialState)
       }
     }
 

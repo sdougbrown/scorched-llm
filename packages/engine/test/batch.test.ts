@@ -216,7 +216,7 @@ describe('runBatch', () => {
     for (const file of files) {
       const log = JSON.parse(readFileSync(join(outDir, file), 'utf-8'))
 
-      expect(log.schemaVersion).toBe('v1')
+      expect(log.schemaVersion).toBe('v2')
       expect(log.metadata).toBeDefined()
       expect(log.metadata.matchId).toBeDefined()
       expect(log.metadata.createdAt).toBeDefined()

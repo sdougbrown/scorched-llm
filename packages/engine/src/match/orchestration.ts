@@ -2,6 +2,7 @@ import type { GameState, TankState } from '../types/state.js'
 import type { ToolCall, ActionEvent, ActionResult } from '../types/tool.js'
 import type { MatchConfig } from '../config/schema.js'
 import type { MatchLog, MatchResult, MatchCheckpoint } from '../types/log.js'
+import { compactGameState } from '../types/log.js'
 import type { TankAgent, ToolSpec } from './fake-agents.js'
 import type { Rng } from '../rng/rng.js'
 import type { TurnConditions } from '../rules/turn-rules.js'
@@ -526,7 +527,7 @@ export function restoreFromCheckpoint(
   rng.restore(checkpoint.rngState)
 
   const log: MatchLog = {
-    schemaVersion: 'v1',
+    schemaVersion: 'v2',
     metadata: {
       matchId: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
@@ -570,7 +571,7 @@ export async function runMatch(
   const playerCount = config.players.length
 
   const log: MatchLog = {
-    schemaVersion: 'v1',
+    schemaVersion: 'v2',
     metadata: {
       matchId: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
@@ -589,7 +590,6 @@ export async function runMatch(
 
   while (runner.turnCursor < config.turnLimit) {
     const nextTurn = runner.turnCursor + 1
-    runner.state = expireFlares(runner.state, nextTurn)
 
     const aliveCount = getAliveCount(runner.state)
     if (aliveCount <= 1) break
@@ -607,6 +607,10 @@ export async function runMatch(
 
     runner.playerCursor = alivePlayerIndex
     const currentTank = runner.state.tanks[runner.playerCursor]
+    // A flare is public for the intervening players, then expires before its
+    // firer's next actual turn. Resolve this after selecting the next living
+    // player because eliminated tanks are skipped by turn scheduling.
+    runner.state = expireFlares(runner.state, nextTurn, currentTank.id)
 
     runner.remainingActions = getActionBudget(config)
     runner.remainingMoveBudget = getMoveBudget(config)
@@ -687,7 +691,7 @@ export async function runMatch(
           kind: 'invalid',
           call,
           result,
-          snapshot: deepCloneGameState(runner.state),
+          snapshot: compactGameState(runner.state),
         })
         runner.invalidStreak++
         const currentWorldview = buildWorldView(
@@ -717,7 +721,7 @@ export async function runMatch(
         kind,
         call,
         result,
-        snapshot: deepCloneGameState(runner.state),
+        snapshot: compactGameState(runner.state),
       })
 
       const isObservation = kind === 'observation'

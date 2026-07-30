@@ -1,4 +1,5 @@
 import type { MatchLog, GameState } from '@scorched-llm/engine'
+import { reconstructGameState } from '@scorched-llm/engine'
 
 export function reduceToState(log: MatchLog, turnIndex: number, actionIndex: number): GameState {
   const clampedTurn = Math.max(0, Math.min(turnIndex, log.turns.length - 1))
@@ -13,7 +14,9 @@ export function reduceToState(log: MatchLog, turnIndex: number, actionIndex: num
     for (let a = 0; a <= maxAction && a < turn.actions.length; a++) {
       const action = turn.actions[a]
       if ('snapshot' in action && typeof action.snapshot !== 'undefined') {
-        state = action.snapshot as GameState
+        // Compact v2 snapshots always inherit immutable terrain and rules from
+        // the replay's initial state; v1 snapshots pass through unchanged.
+        state = reconstructGameState(action.snapshot, log.initialState)
       }
     }
   }

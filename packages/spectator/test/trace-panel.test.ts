@@ -96,6 +96,23 @@ describe('updateTracePanel', () => {
     expect(pre?.textContent).toBe('Thinking about firing...')
   })
 
+  it('renders persisted strategy updates', () => {
+    const turn = makeTurn({
+      modelTrace: {
+        toolCalls: [],
+        tokensIn: 100,
+        tokensOut: 50,
+        costUsd: 0.003,
+        latencyMs: 200,
+        finishReason: 'stop',
+        strategyUpdates: ['Strategy saved through before T7: Sweep south.'],
+      },
+    })
+    updateTracePanel(panel, turn, 'tank-x')
+    expect(panel.querySelector('.trace-panel__assistant')?.textContent)
+      .toBe('Persisted strategy\nStrategy saved through before T7: Sweep south.')
+  })
+
   it('renders provider reasoning in a collapsed section', () => {
     const turn = makeTurn({
       modelTrace: {

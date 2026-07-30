@@ -37,6 +37,8 @@ export interface ModelTrace {
   toolCalls: ToolCall[]
   assistantText?: string
   reasoningContent?: string
+  /** Bounded self-authored strategy updates made through the local control tool. */
+  strategyUpdates?: string[]
   tokensIn: number
   tokensOut: number
   costUsd: number | 'unknown'

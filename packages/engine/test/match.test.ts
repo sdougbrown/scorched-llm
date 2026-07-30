@@ -29,7 +29,7 @@ function makeConfig(overrides: Partial<MatchConfig>): MatchConfig {
 }
 
 function assertLog(log: MatchLog): void {
-  expect(log.schemaVersion).toBe('v1')
+  expect(log.schemaVersion).toBe('v2')
   expect(log.metadata.matchId).toBeDefined()
   expect(log.metadata.createdAt).toBeDefined()
   expect(log.config).toBeDefined()

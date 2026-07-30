@@ -9,6 +9,8 @@ export interface AgentMessage {
   reasoningField?: 'reasoning' | 'reasoning_content'
   /** Opaque native response items needed by provider protocols on subsequent calls. */
   providerData?: unknown
+  /** Agent-local context injected during history compaction. */
+  contextKind?: 'strategy'
 }
 
 export interface ToolSpec {
