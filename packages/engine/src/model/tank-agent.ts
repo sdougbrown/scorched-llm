@@ -25,6 +25,26 @@ const VALID_TOOL_NAMES = new Set<string>([
 /** Direction string validation. */
 const VALID_DIRECTIONS = new Set<string>(['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'])
 
+const STRATEGY_TOOL: ToolSpec = {
+  name: 'remember_strategy',
+  description: 'Persist a short, self-authored tactical plan across history compaction. Use only when your strategy changes. This does not consume an arena action. The plan expires automatically, so include a concrete objective or condition that would invalidate it.',
+  parameters: {
+    type: 'object',
+    properties: {
+      summary: { type: 'string', description: 'A concise current objective, hypothesis, and next step (500 characters max).' },
+      expiresAfterTurns: { type: 'integer', minimum: 1, maximum: 10, description: 'Turns from now before this plan expires; default 6.' },
+    },
+    required: ['summary'],
+    additionalProperties: false,
+  },
+}
+
+interface StrategyEntry {
+  summary: string
+  updatedTurn: number
+  expiresTurn: number
+}
+
 /**
  * Convert a NormalizedToolCall to an engine ToolCall.
  * Returns null for invalid calls (unknown name, missing required fields,
@@ -126,6 +146,7 @@ export class ModelBackedTankAgent implements TankAgent {
   private systemPrompt: string
   private maxToolCallsPerTurn: number
   private tacticalMemory = new TacticalMemory()
+  private strategy?: StrategyEntry
 
   private static readonly RECENT_TURN_WINDOWS = 5
 
@@ -142,6 +163,7 @@ export class ModelBackedTankAgent implements TankAgent {
     tools: ToolSpec[],
     executeTool?: ToolExecutor,
   ): Promise<ToolCall[] | AgentTurnResult> {
+    this.expireStrategy(worldview.turn)
     // 1. Append worldview as user message
     this.tacticalMemory.observe(worldview)
     const description = serializeWorldView(worldview)
@@ -154,6 +176,8 @@ export class ModelBackedTankAgent implements TankAgent {
     let callCount = 0
     let queryCount = 0
     const responses: NormalizedModelResponse[] = []
+    const strategyUpdates: string[] = []
+    let strategyUpdatedThisTurn = false
     let turnEnded = false
     let responseHadToolCalls = false
 
@@ -161,7 +185,7 @@ export class ModelBackedTankAgent implements TankAgent {
       // 2a. Query the model with full history
       const request: ModelRequest = {
         messages: this.messages,
-        tools,
+        tools: [...tools, STRATEGY_TOOL],
       }
       const response = await this.model.query(request)
       queryCount++
@@ -169,13 +193,24 @@ export class ModelBackedTankAgent implements TankAgent {
       responseHadToolCalls = response.toolCalls.length > 0
       finishReason = response.finishReason
 
-      // 2b. Parse tool calls
+      // 2b. Parse arena calls and handle the agent-local strategy control
+      // tool separately. It is never given to the arena executor.
       const calls: ToolCall[] = []
+      const strategyResults = new Map<string, string>()
       for (const call of response.toolCalls) {
-        const validated = normalizeToolCall(call)
-        if (validated !== null) {
-          calls.push(validated)
+        if (call.name === STRATEGY_TOOL.name) {
+          const outcome = this.rememberStrategy(call.arguments, worldview.turn, strategyUpdatedThisTurn)
+          if (outcome.ok) {
+            strategyUpdatedThisTurn = true
+            strategyUpdates.push(outcome.message)
+          }
+          strategyResults.set(call.id, JSON.stringify({
+            result: outcome.ok ? { kind: 'ok', message: outcome.message } : { kind: 'invalid', reason: outcome.message },
+          }))
+          continue
         }
+        const validated = normalizeToolCall(call)
+        if (validated !== null) calls.push(validated)
       }
 
       // 2c. Append assistant response to history
@@ -197,9 +232,17 @@ export class ModelBackedTankAgent implements TankAgent {
         providerData: response.providerData,
       })
 
-      // 2d. Execute validated calls in order and provide their real outcomes
-      // before asking the model to continue.
+      // 2d. Answer local strategy calls, then execute validated arena calls
+      // in order and provide their real outcomes before asking the model to
+      // continue.
       const answeredToolCallIds = new Set<string>()
+      for (const [toolCallId, content] of strategyResults) {
+        this.messages.push({
+          role: 'tool',
+          content: JSON.stringify({ toolCallId, content }),
+        })
+        answeredToolCallIds.add(toolCallId)
+      }
       for (const call of calls) {
         if (callCount >= this.maxToolCallsPerTurn || turnEnded) break
         allToolCalls.push(call)
@@ -279,6 +322,7 @@ export class ModelBackedTankAgent implements TankAgent {
         .map((response) => response.reasoningContent)
         .filter((text): text is string => text != null && text.length > 0)
         .join('\n') || undefined,
+      strategyUpdates: strategyUpdates.length > 0 ? strategyUpdates : undefined,
       tokensIn: responses.reduce((sum, response) => sum + response.tokensIn, 0),
       tokensOut: responses.reduce((sum, response) => sum + response.tokensOut, 0),
       costUsd: costUnknown
@@ -290,20 +334,78 @@ export class ModelBackedTankAgent implements TankAgent {
     return { toolCalls: allToolCalls, modelTrace: trace, executed: true }
   }
 
+  private rememberStrategy(
+    arguments_: Record<string, unknown>,
+    turn: number,
+    alreadyUpdatedThisTurn: boolean,
+  ): { ok: boolean; message: string } {
+    if (alreadyUpdatedThisTurn) {
+      return { ok: false, message: 'Only one strategy update is allowed per turn.' }
+    }
+    const rawSummary = arguments_.summary
+    if (typeof rawSummary !== 'string') {
+      return { ok: false, message: 'summary must be a string.' }
+    }
+    const summary = rawSummary.replace(/\s+/g, ' ').trim()
+    if (summary.length === 0 || summary.length > 500) {
+      return { ok: false, message: 'summary must contain 1 to 500 characters.' }
+    }
+    const rawExpiry = arguments_.expiresAfterTurns
+    const expiresAfterTurns = rawExpiry == null ? 6 : rawExpiry
+    if (
+      typeof expiresAfterTurns !== 'number' ||
+      !Number.isInteger(expiresAfterTurns) ||
+      expiresAfterTurns < 1 ||
+      expiresAfterTurns > 10
+    ) {
+      return { ok: false, message: 'expiresAfterTurns must be an integer from 1 to 10.' }
+    }
+    this.strategy = {
+      summary,
+      updatedTurn: turn,
+      expiresTurn: turn + expiresAfterTurns,
+    }
+    // A newly committed strategy supersedes any context copy injected by an
+    // earlier compaction. The tool result itself remains in recent history.
+    this.messages = this.messages.filter((message) => message.contextKind !== 'strategy')
+    return { ok: true, message: `Strategy saved through before T${turn + expiresAfterTurns}: ${summary}` }
+  }
+
+  private expireStrategy(turn: number): void {
+    if (this.strategy == null || this.strategy.expiresTurn > turn) return
+    this.strategy = undefined
+    this.messages = this.messages.filter((message) => message.contextKind !== 'strategy')
+  }
+
+  private strategyContext(): AgentMessage | undefined {
+    if (this.strategy == null) return undefined
+    return {
+      role: 'user',
+      contextKind: 'strategy',
+      content: [
+        'PERSISTED AGENT STRATEGY — self-authored, may be stale.',
+        `Set at T${this.strategy.updatedTurn}; expires before T${this.strategy.expiresTurn}.`,
+        this.strategy.summary,
+      ].join('\n'),
+    }
+  }
+
   private compactHistory(): void {
     const userMessageIndexes: number[] = []
     for (let i = 1; i < this.messages.length; i++) {
-      if (this.messages[i].role === 'user') userMessageIndexes.push(i)
+      if (this.messages[i].role === 'user' && this.messages[i].contextKind !== 'strategy') userMessageIndexes.push(i)
     }
     if (userMessageIndexes.length <= ModelBackedTankAgent.RECENT_TURN_WINDOWS) return
 
     const firstRecentTurnIndex =
       userMessageIndexes[userMessageIndexes.length - ModelBackedTankAgent.RECENT_TURN_WINDOWS]
+    const strategyContext = this.strategyContext()
     this.messages = [
       {
         role: 'system',
         content: `${this.systemPrompt}\n\n${this.tacticalMemory.render()}`,
       },
+      ...(strategyContext == null ? [] : [strategyContext]),
       ...this.messages.slice(firstRecentTurnIndex),
     ]
   }
