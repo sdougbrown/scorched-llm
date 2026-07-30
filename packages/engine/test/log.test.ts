@@ -39,6 +39,31 @@ describe('compact replay snapshots', () => {
     expect(full.flares[0].targetCell.y).toBe(4)
   })
 
+  it('rejects unknown compact snapshot formats', () => {
+    const unsupported = {
+      ...compactGameState(state()),
+      snapshotFormat: 'compact-v3',
+    } as unknown as GameState
+
+    expect(() => reconstructGameState(unsupported, state()))
+      .toThrow(/^Unsupported compact snapshot format$/)
+  })
+
+  it('rejects a compact snapshot with no format discriminator', () => {
+    const compact = compactGameState(state())
+    const missingFormat = (({ snapshotFormat: _format, ...snapshot }) => snapshot)(compact)
+
+    expect(() => reconstructGameState(missingFormat as unknown as GameState, state()))
+      .toThrow(/^Snapshot is neither a v1 GameState nor a compact-v2 snapshot$/)
+  })
+
+  it('rejects a null compact format discriminator', () => {
+    const nullFormat = { ...compactGameState(state()), snapshotFormat: null }
+
+    expect(() => reconstructGameState(nullFormat as unknown as GameState, state()))
+      .toThrow(/^Unsupported compact snapshot format$/)
+  })
+
   it('keeps legacy full snapshots unchanged', () => {
     const full = state()
 

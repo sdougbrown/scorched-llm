@@ -39,7 +39,15 @@ export function reconstructGameState(
   snapshot: GameState | CompactGameState,
   base: GameState,
 ): GameState {
-  if (!isCompactSnapshot(snapshot)) return snapshot
+  if ('snapshotFormat' in snapshot && snapshot.snapshotFormat !== 'compact-v2') {
+    throw new Error('Unsupported compact snapshot format')
+  }
+  if (!isCompactSnapshot(snapshot)) {
+    if (!('terrain' in snapshot) || !('rulesVersion' in snapshot)) {
+      throw new Error('Snapshot is neither a v1 GameState nor a compact-v2 snapshot')
+    }
+    return snapshot
+  }
   const compact = snapshot
   return {
     turn: compact.turn,
