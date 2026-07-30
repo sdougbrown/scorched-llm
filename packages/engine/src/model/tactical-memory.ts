@@ -124,9 +124,12 @@ export class TacticalMemory {
   private positions: PositionRecord[] = []
   private actions: ActionRecord[] = []
   private exposures: ExposureRecord[] = []
-  private knownMap: Cell[] = []
+  /** Every terrain cell directly observed by this tank, keyed canonically. */
+  private knownCells = new Map<string, Cell>()
 
   observe(worldview: WorldView): void {
+    this.recordKnownCells(worldview.localScan)
+    this.recordKnownCells(worldview.flaredCells.map((visible) => visible.cell))
     const previousPosition = this.positions.at(-1)
     if (
       previousPosition == null ||
@@ -189,11 +192,23 @@ export class TacticalMemory {
       call: formatCall(call),
       result: formatResult(result),
     }, MAX_ACTIONS)
-    if (knownMap != null) this.knownMap = knownMap.map((cell) => ({
-      ...cell,
-      coord: { ...cell.coord },
-    }))
+    if (knownMap != null) this.recordKnownCells(knownMap)
     this.observe(worldview)
+  }
+
+  private recordKnownCells(cells: Cell[]): void {
+    for (const cell of cells) {
+      this.knownCells.set(`${cell.coord.x},${cell.coord.y}`, {
+        ...cell,
+        coord: { ...cell.coord },
+      })
+    }
+  }
+
+  private renderedKnownMap(): Cell[] {
+    return [...this.knownCells.values()].sort(
+      (a, b) => a.coord.y - b.coord.y || a.coord.x - b.coord.x,
+    )
   }
 
   render(): string {
@@ -235,7 +250,7 @@ export class TacticalMemory {
       }
     }
 
-    lines.push('', 'Latest known map:', serializeKnownMap(this.knownMap))
+    lines.push('', 'Latest known map:', serializeKnownMap(this.renderedKnownMap()))
     return lines.join('\n')
   }
 }

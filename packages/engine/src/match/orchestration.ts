@@ -589,7 +589,6 @@ export async function runMatch(
 
   while (runner.turnCursor < config.turnLimit) {
     const nextTurn = runner.turnCursor + 1
-    runner.state = expireFlares(runner.state, nextTurn)
 
     const aliveCount = getAliveCount(runner.state)
     if (aliveCount <= 1) break
@@ -607,6 +606,10 @@ export async function runMatch(
 
     runner.playerCursor = alivePlayerIndex
     const currentTank = runner.state.tanks[runner.playerCursor]
+    // A flare is public for the intervening players, then expires before its
+    // firer's next actual turn. Resolve this after selecting the next living
+    // player because eliminated tanks are skipped by turn scheduling.
+    runner.state = expireFlares(runner.state, nextTurn, currentTank.id)
 
     runner.remainingActions = getActionBudget(config)
     runner.remainingMoveBudget = getMoveBudget(config)

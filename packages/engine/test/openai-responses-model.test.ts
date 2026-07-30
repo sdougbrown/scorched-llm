@@ -82,6 +82,40 @@ describe('OpenAIResponsesModel', () => {
     expect(result.providerData).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'r1' })]))
   })
 
+  it('continues with the previous response and sends only new context', async () => {
+    const bodies: Array<Record<string, unknown>> = []
+    const { port } = await createServer((req, res) => {
+      let raw = ''
+      req.on('data', (chunk) => { raw += chunk })
+      req.on('end', () => {
+        bodies.push(JSON.parse(raw))
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({
+          id: bodies.length === 1 ? 'resp-1' : 'resp-2',
+          status: 'completed',
+          output: bodies.length === 1
+            ? [{ type: 'function_call', call_id: 'call-1', name: 'move', arguments: '{"direction":"N"}' }]
+            : [{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'Done' }] }],
+          usage: { input_tokens: 10, output_tokens: 2 },
+        }))
+      })
+    })
+
+    const model = new OpenAIResponsesModel(spec(`http://127.0.0.1:${port}`))
+    const initial = [{ role: 'system' as const, content: 'Play well.' }, { role: 'user' as const, content: 'Turn 1' }]
+    const first = await model.query(request(initial))
+    await model.query(request([
+      ...initial,
+      { role: 'assistant', content: '[]', providerData: first.providerData },
+      { role: 'tool', content: JSON.stringify({ toolCallId: 'call-1', content: '{"result":{"kind":"ok"}}' }) },
+    ]))
+
+    expect(bodies[1].previous_response_id).toBe('resp-1')
+    expect(bodies[1].input).toEqual([
+      { type: 'function_call_output', call_id: 'call-1', output: '{"result":{"kind":"ok"}}' },
+    ])
+  })
+
   it('replays native response items followed by function output', async () => {
     let body: Record<string, unknown> = {}
     const { port } = await createServer((req, res) => {

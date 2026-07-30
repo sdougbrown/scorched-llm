@@ -50,6 +50,23 @@ describe('serializeKnownMap', () => {
 })
 
 describe('TacticalMemory', () => {
+  it('retains terrain observed through ordinary scans without requiring known_map', () => {
+    const memory = new TacticalMemory()
+    memory.observe({
+      ...worldview(1, 10),
+      localScan: [
+        { coord: { x: 4, y: 4 }, terrain: 'open', obstacleHeight: 0 },
+        { coord: { x: 5, y: 4 }, terrain: 'obstacle', obstacleHeight: 3 },
+      ],
+    })
+    memory.observe({
+      ...worldview(2, 9),
+      localScan: [{ coord: { x: 6, y: 4 }, terrain: 'open', obstacleHeight: 0 }],
+    })
+
+    expect(memory.render()).toContain('y=4: x=4-6; obstacles=5(h3)')
+  })
+
   it('deterministically retains sightings, movement, combat, and exposure', () => {
     const memory = new TacticalMemory()
     memory.observe(worldview(1, 10))

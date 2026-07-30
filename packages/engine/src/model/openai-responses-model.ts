@@ -119,6 +119,8 @@ function sleep(ms: number): Promise<void> {
 export class OpenAIResponsesModel implements Model {
   private spec: ModelSpec
   private perTurnTimeoutMs: number
+  /** Native Responses conversation state for this one persistent tank agent. */
+  private previousResponseId?: string
 
   constructor(spec: ModelSpec, options?: { perTurnTimeoutMs?: number }) {
     this.spec = spec
@@ -130,12 +132,31 @@ export class OpenAIResponsesModel implements Model {
     const apiKey = process.env[apiKeyEnv]
     const baseURL = this.spec.baseURL.replace(/\/+$/, '')
     const url = baseURL.endsWith('/v1') ? `${baseURL}/responses` : `${baseURL}/v1/responses`
+    // The agent appends exactly one assistant message after each query. On a
+    // continuation, the native response already contains that assistant item,
+    // so send only messages added after it (normally tool results or the next
+    // worldview). Falling back to the full transcript keeps checkpoint restore
+    // and providers that omit response IDs working.
+    let previousAssistantIndex = -1
+    for (let index = request.messages.length - 1; index >= 0; index--) {
+      const message = request.messages[index]
+      if (message.role === 'assistant' && Array.isArray(message.providerData)) {
+        previousAssistantIndex = index
+        break
+      }
+    }
+    const canContinue = this.previousResponseId != null && previousAssistantIndex >= 0
+    const inputMessages = canContinue
+      ? request.messages.slice(previousAssistantIndex + 1)
+      : request.messages
+    if (!canContinue) this.previousResponseId = undefined
     const body: Record<string, unknown> = {
       ...this.spec.extraBody,
       model: this.spec.model,
-      input: buildInput(request.messages),
+      input: buildInput(inputMessages),
       tools: buildTools(request.tools),
       max_output_tokens: request.maxTokens ?? this.spec.parameters?.maxTokens ?? 4096,
+      ...(canContinue ? { previous_response_id: this.previousResponseId } : {}),
     }
     if (request.temperature != null) body.temperature = request.temperature
     else if (this.spec.parameters?.temperature != null) body.temperature = this.spec.parameters.temperature
@@ -183,6 +204,8 @@ export class OpenAIResponsesModel implements Model {
     if (response == null) throw new Error('OpenAIResponsesModel: no response received')
 
     const data = await response.json() as ResponsesResponse
+    this.previousResponseId =
+      typeof data.id === 'string' && data.id.length > 0 ? data.id : undefined
     const output = data.output ?? []
     const toolCalls: NormalizedToolCall[] = []
     const text: string[] = []

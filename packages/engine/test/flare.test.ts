@@ -136,6 +136,22 @@ describe('expireFlares', () => {
     expect(newState.flares.length).toBe(1)
   })
 
+  it('expires before the firer next actual turn when an intervening tank was skipped', () => {
+    const state = createState([
+      { id: 'a', position: { x: 5, y: 5 }, hp: 2, maxHp: 2, alive: true, facing: 0, damageDealt: 0, hitsLanded: 0 },
+      { id: 'b', position: { x: 0, y: 0 }, hp: 0, maxHp: 2, alive: false, facing: 0, damageDealt: 0, hitsLanded: 0 },
+      { id: 'c', position: { x: 9, y: 9 }, hp: 2, maxHp: 2, alive: true, facing: 0, damageDealt: 0, hitsLanded: 0 },
+    ], 3)
+    // This is the legacy arithmetic expiry for a three-player match fired on
+    // turn 1. A is scheduled again on turn 3 because B is destroyed.
+    state.flares = [
+      { id: 'f1', targetCell: { x: 5, y: 3 }, radius: 2, firerId: 'a', activatedTurn: 1, expiryTurn: 4 },
+    ]
+
+    expect(expireFlares(state, 2, 'c').flares).toHaveLength(1)
+    expect(expireFlares(state, 3, 'a').flares).toHaveLength(0)
+  })
+
   it('removes all flares when all expired', () => {
     const state = createState([{ id: 't1', position: { x: 5, y: 5 }, hp: 2, maxHp: 2, alive: true, facing: 0, damageDealt: 0, hitsLanded: 0 }])
     state.flares = [

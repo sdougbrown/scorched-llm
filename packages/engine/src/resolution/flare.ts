@@ -80,8 +80,20 @@ export function fireFlare(
   }
 }
 
-export function expireFlares(state: GameState, currentTurn: number): GameState {
-  const activeFlares = state.flares.filter((f) => f.expiryTurn > currentTurn)
+/**
+ * Remove flares that have completed their global round of visibility.
+ *
+ * A flare expires before its firer's next *actual* turn. `expiryTurn` remains
+ * as a deadline for compatibility with saved state and for a dead firer, but
+ * turn scheduling may skip destroyed tanks, so it cannot be the only signal.
+ */
+export function expireFlares(
+  state: GameState,
+  currentTurn: number,
+  currentTankId?: string,
+): GameState {
+  const activeFlares = state.flares.filter((f) =>
+    f.expiryTurn > currentTurn && f.firerId !== currentTankId)
   if (activeFlares.length === state.flares.length) {
     return state
   }
