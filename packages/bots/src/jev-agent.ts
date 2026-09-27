@@ -3,8 +3,10 @@ import type { Tool, ToolCall } from '@scorched-llm/engine'
 import type { Coordinate, Direction } from '@scorched-llm/engine'
 import type { MatchConfig } from '@scorched-llm/engine'
 import type { AgentTurnResult, TankAgent, ToolExecutor } from '@scorched-llm/engine'
-import { DIRECTION_DELTAS, euclidean, inBounds, supercover } from '@scorched-llm/engine'
+import { DIRECTION_DELTAS } from '@scorched-llm/engine'
 import type { DecisionAnswer, DecisionClient, DecisionQuestion } from './jev-client.js'
+import type { DecisionLog } from './jev-scaffold.js'
+import { emptyLog, createJevScaffold, COMPASS } from './jev-scaffold.js'
 import { TypeSafeDecisionClient } from './jev-client.js'
 
 /**
@@ -13,79 +15,31 @@ import { TypeSafeDecisionClient } from './jev-client.js'
  * arithmetic; it answers typed questions (choice / score / noul) about a
  * state blob with calibrated probabilities.
  *
- * The harness therefore inverts the usual LLM-agent shape. Code owns every
- * number and every feasibility check: it computes shot geometry, arc
- * clearance, path clearance, and enemy bearings; prunes options that cannot
- * work (no shot candidates, blocked directions) so Jev never reasons over
- * negations; and labels each remaining option with a computed verdict
- * ("likely destroys it", "recommended", "retreat"). Jev judges among the
- * described options; the chosen option's precomputed arguments are copied
- * verbatim into the engine tool call. Decisions resolve in stages — intent
- * first, then a branch-specific question set — with a fresh WorldView after
- * every executed action.
+ * The harness therefore inverts the usual LLM-agent shape. The shared
+ * scaffold (`jev-scaffold.ts`) computes shot candidates, direction intel,
+ * flare goals, and threat signals, and prunes options that cannot work so
+ * Jev never reasons over negations; Jev judges among the described options
+ * and the chosen option's precomputed arguments are copied verbatim into
+ * the engine tool call. Decisions resolve in stages — intent first, then a
+ * branch-specific question set — with a fresh WorldView after every
+ * executed action.
  *
  * The decision client is swappable (`DecisionClient` in jev-client.ts) so
  * other System One-style models or classifier stacks can be trialed.
+ * `jev-greedy` is the deterministic twin: identical scaffold, scripted
+ * picks — the ablation control for how much Jev's judgment contributes.
  */
-
-const COMPASS: Direction[] = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
 
 /** Offensive actions are irreversible: demand a clear winner. */
 const OFFENSIVE_MIN_TOP = 0.5
 const OFFENSIVE_MIN_MARGIN = 0.2
-/** Moves and flare placement are reversible or low-stakes: accept a weak
- * consensus among near-symmetric options. */
+/** Moves and flare placement are reversible or low-stakes. */
 const MOVE_MIN_TOP = 0.4
 const MOVE_MIN_MARGIN = 0.1
 const FLARE_MIN_TOP = 0.35
 const FLARE_MIN_MARGIN = 0.05
 /** Safety cap on decision rounds per turn. */
 const MAX_DECISIONS_PER_TURN = 6
-/** Maximum shot candidates offered in one shell question. */
-const MAX_CANDIDATES = 6
-
-interface EnemySighting {
-  position: Coordinate
-  hp: number
-  lastSeenTurn: number
-  visible: boolean
-}
-
-interface Target {
-  id: string
-  position: Coordinate
-  hp: number
-  visible: boolean
-  lastSeenTurn: number
-}
-
-interface ShotCandidate {
-  key: string
-  angle: number
-  power: number
-  description: string
-}
-
-interface DirectionInfo {
-  dir: Direction
-  clear: number
-  delta: number
-  relation: string
-  leavesFlare: boolean
-}
-
-interface TurnContext {
-  offensiveUsed: boolean
-}
-
-interface DecisionLog {
-  lines: string[]
-  tokensIn: number
-  tokensOut: number
-  costUsd: number
-  latencyMs: number
-  model: string
-}
 
 type QuestionSet = Record<string, DecisionQuestion>
 
@@ -97,30 +51,8 @@ export interface JevAgentOptions {
   apiKey?: string
 }
 
-function cellKey(c: Coordinate): string {
-  return `${c.x},${c.y}`
-}
-
-/** Clockwise bearing in degrees [0, 360) from `from` to `to`. 0 = N, 90 = E. */
-function bearingDeg(from: Coordinate, to: Coordinate): number {
-  const dx = to.x - from.x
-  const dy = to.y - from.y
-  let angle = Math.atan2(dx, -dy) * (180 / Math.PI)
-  if (angle < 0) angle += 360
-  if (angle >= 360) angle -= 360
-  return angle
-}
-
-function normalizeAngle(angle: number): number {
-  let a = angle % 360
-  if (a < 0) a += 360
-  return a
-}
-
-/** Smallest absolute difference between two bearings, in degrees. */
-function bearingDelta(a: number, b: number): number {
-  const d = Math.abs(normalizeAngle(a) - normalizeAngle(b))
-  return d > 180 ? 360 - d : d
+function isOffensive(tool: Tool): boolean {
+  return tool.kind === 'fire_shell' || tool.kind === 'fire_bomb' || tool.kind === 'fire_flare'
 }
 
 /**
@@ -140,21 +72,6 @@ function gatedChoice(answer: DecisionAnswer | undefined, minTop: number, minMarg
   return topKey
 }
 
-/**
- * Height of the shell's parabolic arc at sample index `i` of `n` cells after
- * the shooter — mirrors `engine/src/resolution/shell.ts`.
- */
-function shellArcHeight(i: number, n: number, apexHeight: number, tankHeight: number): number {
-  if (n <= 0) return tankHeight
-  const progress = (i + 1) / n
-  const arc = 4 * progress * (1 - progress)
-  return tankHeight + (apexHeight - tankHeight) * arc
-}
-
-function isOffensive(tool: Tool): boolean {
-  return tool.kind === 'fire_shell' || tool.kind === 'fire_bomb' || tool.kind === 'fire_flare'
-}
-
 export function createJevAgent(
   tankId: string,
   config: MatchConfig,
@@ -164,299 +81,7 @@ export function createJevAgent(
     model: options.model,
     apiKey: options.apiKey,
   })
-
-  const mapWidth = config.map.width
-  const mapHeight = config.map.height
-  const shellMaxRange = config.shell.maxRange
-  const apexHeight = config.shell.apexHeight
-  const tankHeight = config.shell.tankHeight
-  const obstacleHeight = config.map.obstacleHeight
-  const moveMax = Math.max(1, Math.floor(config.moveMax ?? config.fog.flareRadius))
-  const flareRadius = config.fog.flareRadius
-  const hitsToKill = config.lethality.hitsToKill
-  const bombsEnabled = config.bomb != null
-
-  const knownObstacles = new Set<string>()
-  const enemyMemory = new Map<string, EnemySighting>()
-  // Damage tracking: an hp drop without a sighting means an unseen hunter is
-  // firing from beyond local vision.
-  let lastHp: number | null = null
-  let underAttackTurns = 0
-
-  // Exploration: inset corners plus the exact map center, rotated when the
-  // tank arrives or stalls — real coordinates instead of a fixed center that
-  // invites N/S oscillation on an empty local map.
-  const marginX = Math.max(1, Math.floor(mapWidth * 0.15))
-  const marginY = Math.max(1, Math.floor(mapHeight * 0.15))
-  const waypoints: Coordinate[] = [
-    { x: marginX, y: marginY },
-    { x: mapWidth - 1 - marginX, y: marginY },
-    { x: mapWidth - 1 - marginX, y: mapHeight - 1 - marginY },
-    { x: marginX, y: mapHeight - 1 - marginY },
-    { x: Math.round((mapWidth - 1) / 2), y: Math.round((mapHeight - 1) / 2) },
-  ]
-  let waypointIndex = 0
-  let turnsSinceWaypointShift = 0
-
-  function currentWaypoint(): Coordinate {
-    return waypoints[waypointIndex % waypoints.length]
-  }
-
-  function advanceWaypoint(): void {
-    waypointIndex = (waypointIndex + 1) % waypoints.length
-    turnsSinceWaypointShift = 0
-  }
-
-  /** Rotate exploration when the tank has arrived or is stalled. Called on
-   * blind turns only — a known target outranks waypoint exploration. */
-  function tickExploration(cw: WorldView): void {
-    if (pickTarget(cw) !== null) return
-    turnsSinceWaypointShift += 1
-    if (euclidean(cw.position, currentWaypoint()) <= 1 || turnsSinceWaypointShift >= 4) {
-      advanceWaypoint()
-    }
-  }
-
-  function absorb(cw: WorldView): void {
-    for (const cell of cw.localScan) {
-      if (cell.terrain === 'obstacle') knownObstacles.add(cellKey(cell.coord))
-    }
-    for (const fc of cw.flaredCells) {
-      if (fc.cell.terrain === 'obstacle') knownObstacles.add(cellKey(fc.cell.coord))
-    }
-    const visibleIds = new Set<string>()
-    for (const enemy of cw.visibleEnemies ?? []) {
-      visibleIds.add(enemy.id)
-      enemyMemory.set(enemy.id, {
-        position: { ...enemy.position },
-        hp: enemy.hp,
-        lastSeenTurn: cw.turn,
-        visible: true,
-      })
-    }
-    for (const [id, sighting] of enemyMemory) {
-      if (!visibleIds.has(id)) sighting.visible = false
-    }
-    if (lastHp != null && cw.hp < lastHp) {
-      underAttackTurns = 3
-    }
-    lastHp = cw.hp
-  }
-
-  function pickTarget(cw: WorldView): Target | null {
-    let best: Target | null = null
-    for (const [id, s] of enemyMemory) {
-      if (
-        best === null ||
-        (s.visible && !best.visible) ||
-        (s.visible === best.visible && s.lastSeenTurn > best.lastSeenTurn)
-      ) {
-        best = { id, position: s.position, hp: s.hp, visible: s.visible, lastSeenTurn: s.lastSeenTurn }
-      }
-    }
-    return best
-  }
-
-  /** Steps the tank can travel in `dir` before known terrain or the map edge. */
-  function clearDistance(from: Coordinate, dir: Direction): number {
-    const delta = DIRECTION_DELTAS[dir]
-    for (let step = 1; step <= moveMax; step++) {
-      const c: Coordinate = { x: from.x + delta.dx * step, y: from.y + delta.dy * step }
-      if (!inBounds(c, mapWidth, mapHeight)) return step - 1
-      if (knownObstacles.has(cellKey(c))) return step - 1
-    }
-    return moveMax
-  }
-
-  function knownBlockedShot(from: Coordinate, to: Coordinate): boolean {
-    const cells = supercover(from, to).slice(1)
-    for (let i = 0; i < cells.length; i++) {
-      const cell = cells[i]
-      if (!knownObstacles.has(cellKey(cell))) continue
-      const height = shellArcHeight(i, cells.length, apexHeight, tankHeight)
-      if (height <= obstacleHeight) return true
-    }
-    return false
-  }
-
-  function preciseShot(from: Coordinate, to: Coordinate): { angle: number; power: number } {
-    const dx = to.x - from.x
-    const dy = to.y - from.y
-    return { angle: bearingDeg(from, to), power: Math.sqrt(dx * dx + dy * dy) }
-  }
-
-  function enemyFlareCenter(cw: WorldView): Coordinate | null {
-    const firerIds = new Set(cw.inEnemyFlare.map((f) => f.firerId))
-    let best: Coordinate | null = null
-    let bestDist = Infinity
-    for (const flare of cw.activeFlares ?? []) {
-      if (!firerIds.has(flare.firerId)) continue
-      const dist = euclidean(cw.position, flare.targetCell)
-      if (dist < bestDist) {
-        bestDist = dist
-        best = flare.targetCell
-      }
-    }
-    return best
-  }
-
-  /** Code-computed shot solutions with computed verdicts. Visible enemies
-   * with verified-clear paths rank first, then stale last-known positions. */
-  function buildShotCandidates(cw: WorldView): ShotCandidate[] {
-    const candidates: ShotCandidate[] = []
-    const seenCells = new Set<string>()
-    const push = (id: string, sighting: EnemySighting, turnsAgo: number): void => {
-      const cell = cellKey(sighting.position)
-      if (seenCells.has(cell)) return
-      const { angle, power } = preciseShot(cw.position, sighting.position)
-      if (power < 1 || power > shellMaxRange + 1e-6) return
-      const pathClear = !knownBlockedShot(cw.position, sighting.position)
-      if (sighting.visible && !pathClear) return // a known-blocked visible shot is a wasted shell
-      seenCells.add(cell)
-      const dist = Math.round(power * 10) / 10
-      const path = sighting.visible ? 'arc verified clear' : 'arc not verified'
-      const outcome = sighting.visible
-        ? hitsToKill === 1 || sighting.hp <= 1
-          ? 'likely destroys it'
-          : 'likely damages it'
-        : 'likely misses (the target may have moved since)'
-      const what = sighting.visible
-        ? `${id} — visible now at cell ${cell}, hp ${sighting.hp} of ${hitsToKill} hits to kill`
-        : `${id}'s last-known position, cell ${cell}, seen ${turnsAgo} turn${turnsAgo === 1 ? '' : 's'} ago`
-      candidates.push({
-        key: `c${candidates.length}`,
-        angle,
-        power,
-        description: `fire the shell at ${what}; distance ${dist} of max ${shellMaxRange}; ${path} — ${outcome}`,
-      })
-    }
-
-    const visible = [...enemyMemory.entries()].filter(([, s]) => s.visible)
-    const stale = [...enemyMemory.entries()]
-      .filter(([, s]) => !s.visible)
-      .sort((a, b) => b[1].lastSeenTurn - a[1].lastSeenTurn)
-    for (const [id, s] of visible) push(id, s, 0)
-    for (const [id, s] of stale) push(id, s, cw.turn - s.lastSeenTurn)
-    return candidates.slice(0, MAX_CANDIDATES)
-  }
-
-  function directionInfos(
-    cw: WorldView,
-    target: Target | null,
-    flee: boolean,
-  ): DirectionInfo[] {
-    const flareCenter = enemyFlareCenter(cw)
-    const goalPosition = target !== null ? target.position : currentWaypoint()
-    const goal = target === null
-      ? 'the exploration waypoint'
-      : target.visible ? 'the enemy' : "the enemy's last known position"
-    const goalBearing = bearingDeg(cw.position, goalPosition)
-    const desired = flee ? normalizeAngle(goalBearing + 180) : goalBearing
-    const infos: DirectionInfo[] = []
-    for (const dir of COMPASS) {
-      const clear = clearDistance(cw.position, dir)
-      if (clear <= 0) continue // blocked directions are never offered
-      const delta = bearingDelta(COMPASS.indexOf(dir) * 45, desired)
-      let leavesFlare = false
-      if (flareCenter !== null) {
-        const delta2 = DIRECTION_DELTAS[dir]
-        const next: Coordinate = {
-          x: cw.position.x + delta2.dx * clear,
-          y: cw.position.y + delta2.dy * clear,
-        }
-        leavesFlare = euclidean(next, flareCenter) > euclidean(cw.position, flareCenter)
-      }
-      infos.push({ dir, clear, delta, relation: goal, leavesFlare })
-    }
-    return infos
-  }
-
-  function relationPhrase(delta: number, goal: string): string {
-    if (delta <= 22.5) return `directly toward ${goal}`
-    if (delta <= 67.5) return `diagonally toward ${goal}`
-    if (delta <= 112.5) return `sideways relative to ${goal}`
-    if (delta <= 157.5) return `diagonally away from ${goal}`
-    return `directly away from ${goal}`
-  }
-
-  function describeDirection(
-    info: DirectionInfo,
-    hasTarget: boolean,
-    flee: boolean,
-  ): string {
-    let verdict: string
-    if (flee) {
-      verdict = info.leavesFlare ? 'retreat: exits the enemy flare' : 'stays exposed in the enemy flare'
-    } else if (!hasTarget) {
-      verdict = 'explores toward the current waypoint'
-    } else if (info.delta <= 67.5) {
-      verdict = 'recommended: closes on the target'
-    } else if (info.delta <= 112.5) {
-      verdict = 'flanks the target'
-    } else {
-      verdict = 'gives up pursuit'
-    }
-    const cells = info.clear === 1 ? '1 cell' : `${info.clear} cells`
-    return `${info.dir}: moves ${relationPhrase(info.delta, info.relation)}; travels ${cells}; path clear for ${cells} — ${verdict}`
-  }
-
-  // --- State builders ---
-
-  function baseState(cw: WorldView, candidateCount: number): Record<string, unknown> {
-    const target = pickTarget(cw)
-    return {
-      me: {
-        position: cw.position,
-        hp: cw.hp,
-        actions_left: cw.remainingActions,
-        turn: cw.turn,
-      },
-      shell: { max_range: shellMaxRange, shots_available: candidateCount },
-      move: { max_distance: moveMax },
-      flare: { reveal_radius: flareRadius },
-      visible_enemies: [...enemyMemory.entries()]
-        .filter(([, s]) => s.visible)
-        .map(([id, s]) => {
-          const shot = preciseShot(cw.position, s.position)
-          return {
-            id,
-            position: s.position,
-            hp: s.hp,
-            distance: Math.round(shot.power * 10) / 10,
-            in_range: shot.power <= shellMaxRange + 1e-6,
-            arc_clear: !knownBlockedShot(cw.position, s.position),
-            cell: cellKey(s.position),
-          }
-        }),
-      memory: [...enemyMemory.entries()]
-        .filter(([, s]) => !s.visible)
-        .map(([id, s]) => {
-          const shot = preciseShot(cw.position, s.position)
-          return {
-            id,
-            last_position: s.position,
-            turns_since_seen: cw.turn - s.lastSeenTurn,
-            distance: Math.round(shot.power * 10) / 10,
-            in_range: shot.power <= shellMaxRange + 1e-6,
-          }
-        }),
-      threats: {
-        in_enemy_flare: cw.inEnemyFlare.length > 0,
-        flare_expires_turn: cw.inEnemyFlare[0]?.expiryTurn,
-        under_attack: underAttackTurns > 0,
-        under_attack_note: underAttackTurns > 0
-          ? 'the tank has taken damage without seeing the shooter: an unseen enemy is firing from beyond local vision'
-          : null,
-      },
-      target_hint: target === null
-        ? 'no enemy has been seen yet'
-        : target.visible
-          ? 'an enemy is visible right now'
-          : `the most recent enemy sighting is ${cw.turn - target.lastSeenTurn} turn(s) old`,
-    }
-  }
-
-  // --- Decision stages ---
+  const sc = createJevScaffold(tankId, config)
 
   function makeAsk(log: DecisionLog) {
     return async (
@@ -477,16 +102,16 @@ export function createJevAgent(
    * end the turn. */
   async function decideOnce(
     cw: WorldView,
-    ctx: TurnContext,
+    ctx: { offensiveUsed: boolean },
     log: DecisionLog,
   ): Promise<Tool | null> {
     const ask = makeAsk(log)
 
     // Prune before asking: Jev never sees options that cannot work.
-    const candidates = ctx.offensiveUsed ? [] : buildShotCandidates(cw)
-    const flee = cw.inEnemyFlare.length > 0
-    const target = pickTarget(cw)
-    const moveInfos = directionInfos(cw, target, flee)
+    const candidates = ctx.offensiveUsed ? [] : sc.buildShotCandidates(cw)
+    const target = sc.pickTarget(cw)
+    const flee = cw.inEnemyFlare.length > 0 || (sc.underAttack() && target !== null)
+    const moveInfos = sc.directionInfos(cw, target, flee)
     const canMove = moveInfos.length > 0
     const canFlare = !ctx.offensiveUsed
 
@@ -496,23 +121,23 @@ export function createJevAgent(
       actionCriteria.fire_shell =
         'The `shell.shots_available` field is greater than 0: the fire-control system has precomputed at least one shot in `candidates`. Firing uses the tank\'s one offensive action for this turn.'
     }
-    if (bombsEnabled && (cw.bombsRemaining ?? 0) > 0 && candidates.length > 0) {
+    if (sc.bombsEnabled && (cw.bombsRemaining ?? 0) > 0 && candidates.length > 0) {
       actionCriteria.fire_bomb =
         'The `shell.shots_available` field is greater than 0 and `me` still has bombs: a splash hit near clustered targets beats a direct shell'
     }
     if (canMove) {
-      actionCriteria.move = underAttackTurns > 0
+      actionCriteria.move = sc.underAttack()
         ? '`threats.under_attack` is true: an unseen enemy is shooting at the tank — relocate immediately, away from where the recent shots came from'
         : 'No shot option is offered, or the tank is inside an enemy flare (`threats.in_enemy_flare` is true) and should escape the light. Moving repositions the tank.'
     }
     if (canFlare) {
-      actionCriteria.fire_flare = underAttackTurns > 0
-        ? 'No shot option is offered and `threats.under_attack` is true: a deep flare can reveal the hidden shooter'
+      actionCriteria.fire_flare = sc.underAttack()
+        ? 'No shot option is offered and `threats.under_attack` is true: a flare ring around the tank can reveal the hidden shooter closing in'
         : 'No shot option is offered and `target_hint` says the enemy position is unknown or stale: reveal darkness with a deep flare. Firing a flare uses the tank\'s one offensive action for this turn.'
     }
     actionCriteria.pass = 'Every other offered option fails its stated conditions.'
 
-    const answers = await ask(baseState(cw, candidates.length), {
+    const answers = await ask(sc.baseState(cw, candidates.length), {
       intent: {
         type: 'choice',
         instructions:
@@ -534,7 +159,7 @@ export function createJevAgent(
     if (gatedIntent === 'fire_shell' || gatedIntent === 'fire_bomb') {
       if (candidates.length > 0) {
         const shotState = {
-          ...baseState(cw, candidates.length),
+          ...sc.baseState(cw, candidates.length),
           candidates: candidates.map((c) => ({ option: c.key, description: c.description })),
         }
         const shotAnswers = await ask(shotState, {
@@ -570,8 +195,8 @@ export function createJevAgent(
 
     if (gatedIntent === 'move' || gatedIntent === 'fire_shell' || gatedIntent === 'fire_bomb') {
       const dirCriteria: Record<string, string> = {}
-      for (const info of moveInfos) dirCriteria[info.dir] = describeDirection(info, target !== null, flee)
-      const moveAnswers = await ask(baseState(cw, candidates.length), {
+      for (const info of moveInfos) dirCriteria[info.dir] = sc.describeDirection(info, target !== null, flee)
+      const moveAnswers = await ask(sc.baseState(cw, candidates.length), {
         direction: {
           type: 'choice',
           instructions:
@@ -583,65 +208,77 @@ export function createJevAgent(
       if (chosen !== null && dirCriteria[chosen] === undefined) chosen = null
       if (chosen === null) {
         // Fallback ladder: the code-computed best direction, never a pass —
-        // a wasted move is better than a wasted turn. When repositioning
-        // after a held shot with a known target, a shot-friendly direction
-        // still beats standing still.
+        // a wasted move is better than a wasted turn.
         const fallback = moveInfos.find((i) => flee && i.leavesFlare)
           ?? moveInfos.reduce((a, b) => (b.delta < a.delta ? b : a))
         log.lines.push(`  move: gate failed; fallback ${fallback.dir}`)
         return {
           kind: 'move',
           direction: fallback.dir,
-          distance: clearDistance(cw.position, fallback.dir),
+          distance: sc.clearDistance(cw.position, fallback.dir),
         }
       }
       const dirProb = moveAnswers.direction.type === 'choice'
         ? moveAnswers.direction.probabilities[chosen] ?? moveAnswers.direction.confidence
         : 0
-      log.lines.push(`  move=${chosen} x${clearDistance(cw.position, chosen as Direction)} p=${dirProb.toFixed(2)}`)
-      return { kind: 'move', direction: chosen as Direction, distance: clearDistance(cw.position, chosen as Direction) }
+      log.lines.push(`  move=${chosen} x${sc.clearDistance(cw.position, chosen as Direction)} p=${dirProb.toFixed(2)}`)
+      return { kind: 'move', direction: chosen as Direction, distance: sc.clearDistance(cw.position, chosen as Direction) }
     }
 
     if (gatedIntent === 'fire_flare') {
-      // One information goal in code: the freshest memory, else the current
-      // exploration waypoint. Code also picks the landing range — deep,
-      // in-bounds-verified flares cover new ground; a bare magnitude choice
-      // is not a judgment Jev can ground.
-      const goalPosition = target !== null ? target.position : currentWaypoint()
-      const goalBearing = bearingDeg(cw.position, goalPosition)
-      const goalDist = euclidean(cw.position, goalPosition)
+      // Information goal, in priority order: a remembered enemy position;
+      // else the opponent's own recent flare target (their flare sits within
+      // shell range of where they stood — triangulation); else, while under
+      // attack, a ring around the tank itself, where the hidden shooter must
+      // be converging; else the current exploration waypoint. Code picks the
+      // landing range — deep, in-bounds-verified flares cover new ground; a
+      // bare magnitude choice is not a judgment Jev can ground.
+      const hint = sc.freshEnemyFlareHint(cw)
+      const selfRing = sc.underAttack() && target === null
+      const goalPosition = target !== null
+        ? target.position
+        : hint !== null
+          ? hint.targetCell
+          : selfRing
+            ? cw.position
+            : sc.currentWaypoint()
+      const goalBearing = ((): number => {
+        const dx = goalPosition.x - cw.position.x
+        const dy = goalPosition.y - cw.position.y
+        let a = Math.atan2(dx, -dy) * (180 / Math.PI)
+        if (a < 0) a += 360
+        return a
+      })()
+      const goalDist = Math.sqrt(
+        (goalPosition.x - cw.position.x) ** 2 + (goalPosition.y - cw.position.y) ** 2,
+      )
       const dirCriteria: Record<string, string> = {}
       const ranges = new Map<string, number>()
-      for (const info of directionInfos(cw, target, false)) {
-        if (bearingDelta(COMPASS.indexOf(info.dir) * 45, goalBearing) > 90) continue
-        const delta2 = DIRECTION_DELTAS[info.dir]
-        let maxInBounds = 0
-        for (let r = 1; r <= shellMaxRange; r++) {
-          const cell: Coordinate = {
-            x: cw.position.x + delta2.dx * r,
-            y: cw.position.y + delta2.dy * r,
-          }
-          if (!inBounds(cell, mapWidth, mapHeight)) break
-          maxInBounds = r
-        }
+      for (const info of sc.directionInfos(cw, target, false)) {
+        if (!selfRing && normalize(info.dir, goalBearing) > 90) continue
+        const maxInBounds = sc.maxFlareRange(cw.position, info.dir)
         if (maxInBounds <= 0) continue
-        // Blind flares go as deep as the map allows; memory-guided flares
-        // land on the goal area.
-        const range = target !== null
-          ? Math.max(1, Math.min(maxInBounds, Math.round(goalDist)))
-          : maxInBounds
+        const range = selfRing
+          ? Math.min(3, maxInBounds)
+          : target !== null || hint !== null
+            ? Math.max(1, Math.min(maxInBounds, Math.round(goalDist)))
+            : maxInBounds
         const goalPhrase = target !== null
           ? `${target.id}'s last known position`
-          : 'the exploration corridor'
-        dirCriteria[info.dir] = `${info.dir}: flare lands ${range} cells out, revealing a circle of radius ${flareRadius} around ${goalPhrase}`
+          : hint !== null
+            ? 'the cell the opponent recently lit with its own flare'
+            : selfRing
+              ? 'the area right around the tank, where the hidden shooter must be closing in'
+              : 'the exploration corridor'
+        dirCriteria[info.dir] = `${info.dir}: flare lands ${range} cells out, revealing a circle of radius ${sc.flareRadius} around ${goalPhrase}`
         ranges.set(info.dir, range)
       }
       if (Object.keys(dirCriteria).length === 0) return { kind: 'pass' }
-      const flareAnswers = await ask(baseState(cw, candidates.length), {
+      const flareAnswers = await ask(sc.baseState(cw, candidates.length), {
         flare_direction: {
           type: 'choice',
           instructions:
-            'You are the tank in `me`. You chose to fire a flare. Each option places a reveal circle of radius `flare.reveal_radius` at a computed landing distance that is as deep as the map allows in that direction. Choose the direction that places the reveal circle where the enemy is most likely to be.',
+            'You are the tank in `me`. You chose to fire a flare. Each option places a reveal circle of radius `flare.reveal_radius` at a computed landing distance. Choose the direction that places the reveal circle where the enemy is most likely to be.',
           criteria: dirCriteria,
         },
       })
@@ -653,8 +290,7 @@ export function createJevAgent(
       // Flare placement is low-stakes: on a weak consensus, fall back to the
       // offered direction closest to the information goal instead of a pass.
       const chosenDir = gatedDir ?? [...Object.keys(dirCriteria)].reduce((a, b) =>
-        bearingDelta(COMPASS.indexOf(b as Direction) * 45, goalBearing) <
-        bearingDelta(COMPASS.indexOf(a as Direction) * 45, goalBearing)
+        Math.abs(normalize(b as Direction, goalBearing)) < Math.abs(normalize(a as Direction, goalBearing))
           ? b
           : a,
       )
@@ -669,6 +305,12 @@ export function createJevAgent(
     return { kind: 'pass' }
   }
 
+  /** Bearing delta helper local to the flare goal. */
+  function normalize(dir: Direction, goalBearing: number): number {
+    const d = Math.abs((COMPASS.indexOf(dir) * 45) - goalBearing) % 360
+    return d > 180 ? 360 - d : d
+  }
+
   // --- Turn loop ---
 
   async function runTurn(
@@ -677,13 +319,13 @@ export function createJevAgent(
   ): Promise<ToolCall[]> {
     let cw = initial
     const calls: ToolCall[] = []
-    const ctx: TurnContext = { offensiveUsed: false }
-    const log: DecisionLog = { lines: [], tokensIn: 0, tokensOut: 0, costUsd: 0, latencyMs: 0, model: client.id }
+    const ctx = { offensiveUsed: false }
+    const log = emptyLog(client.id)
     let seq = 0
 
     for (let iter = 0; iter < MAX_DECISIONS_PER_TURN; iter++) {
       if (cw.remainingActions <= 0) break
-      if (underAttackTurns > 0) underAttackTurns -= 1
+      sc.decayAttack()
       const tool = await decideOnce(cw, ctx, log)
       if (!tool) break
       if (isOffensive(tool) && ctx.offensiveUsed) break
@@ -708,8 +350,11 @@ export function createJevAgent(
       }
 
       const exec = await executeTool(call)
+      if (tool.kind === 'fire_flare') {
+        sc.noteFlareTarget(cw, tool.direction, tool.range)
+      }
       cw = exec.worldview
-      absorb(cw)
+      sc.absorb(cw)
       if (isOffensive(tool)) ctx.offensiveUsed = true
       log.lines.push(`  -> ${exec.result.kind}`)
       if (exec.turnEnded) break
@@ -738,10 +383,10 @@ export function createJevAgent(
       if (!worldview.isMyTurn) {
         return [{ id: `jev-${tankId}-T${worldview.turn}-pass`, tool: { kind: 'pass' } }]
       }
-      absorb(worldview)
-      tickExploration(worldview)
+      sc.absorb(worldview)
+      sc.tickExploration(worldview)
       const calls = await runTurn(worldview, executeTool ?? null)
-      const log = lastLog ?? { lines: [], tokensIn: 0, tokensOut: 0, costUsd: 0, latencyMs: 0, model: client.id }
+      const log = lastLog ?? emptyLog(client.id)
       if (executeTool == null) {
         return calls
       }
