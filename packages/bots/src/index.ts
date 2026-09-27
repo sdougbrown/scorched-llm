@@ -11,6 +11,9 @@ import { createGpt55Agent } from './gpt-5.5-agent.js'
 import { createGpt56SolAgent, gpt56SolOptionsFromConfig } from './gpt-5-6-sol-agent.js'
 import { createGptOssAgent } from './gpt-oss-agent.js'
 import { createHaikuAgent } from './haiku-agent.js'
+import { createJevAgent } from './jev-agent.js'
+import { createJevGreedyAgent } from './jev-greedy-agent.js'
+import { createJevRawAgent } from './jev-raw-agent.js'
 import { createKimiAgent } from './kimi-agent.js'
 import { createMimoAgent } from './mimo-agent.js'
 import { createMinimaxAgent } from './minimax-agent.js'
@@ -37,6 +40,11 @@ export * from './gpt-5.5-agent.js'
 export * from './gpt-5-6-sol-agent.js'
 export * from './gpt-oss-agent.js'
 export * from './haiku-agent.js'
+export * from './jev-agent.js'
+export * from './jev-client.js'
+export * from './jev-greedy-agent.js'
+export * from './jev-raw-agent.js'
+export * from './jev-scaffold.js'
 export * from './kimi-agent.js'
 export * from './mimo-agent.js'
 export * from './minimax-agent.js'
@@ -103,6 +111,9 @@ export const SCRIPTED_AGENTS: Record<string, (tankId: string, config: MatchConfi
   step: (tankId) => createStepAgent(tankId),
   nemotron: (tankId) => createNemotronAgent(tankId),
   north: (tankId) => createNorthAgent(tankId),
+  jev: (tankId, config) => createJevAgent(tankId, config),
+  'jev-greedy': (tankId, config) => createJevGreedyAgent(tankId, config),
+  'jev-raw': (tankId, config) => createJevRawAgent(tankId, config),
 }
 
 /** Every registered entrant name. */
