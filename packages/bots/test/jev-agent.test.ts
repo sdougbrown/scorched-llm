@@ -221,6 +221,38 @@ describe('JevAgent', () => {
     expect(wounded.under_attack_note).toContain('unseen enemy')
   })
 
+  it('offers a self-ring flare when under attack with no sighting', async () => {
+    const client = makeFakeClient([
+      // Turn 1 (healthy): move.
+      { intent: choiceAnswer('move'), posture: { type: 'score', score: 2.0, confidence: 0.8 } },
+      { direction: choiceAnswer('N') },
+      // Turn 2 (wounded, blind): flare — the self-ring mode must engage.
+      { intent: choiceAnswer('fire_flare'), posture: { type: 'score', score: 0.5, confidence: 0.8 } },
+      { flare_direction: choiceAnswer('E') },
+    ])
+    const agent = createJevAgent('tank-0', makeConfig(), { client })
+    const initial = makeWorldView({ hp: 2, remainingActions: 1 })
+    const executor = makeExecuteToolMock(initial)
+    await agent.takeTurn(initial, [], executor)
+    const result = await agent.takeTurn(
+      makeWorldView({ hp: 1, remainingActions: 1 }),
+      [],
+      executor,
+    ) as { toolCalls: ToolCall[] }
+
+    const flareAsk = client.asks[3]
+    const flareQ = flareAsk.questions.flare_direction
+    if (flareQ.type !== 'choice') throw new Error('expected choice question')
+    // All 8 directions offered (no bearing filter in self-ring mode), and
+    // the criteria describe the self-area ring, not a corridor.
+    expect(Object.keys(flareQ.criteria)).toHaveLength(8)
+    expect(Object.values(flareQ.criteria)[0]).toContain('hidden shooter')
+    // Ring range is short, not a deep corridor flare.
+    const flare = firstCall(result.toolCalls, 'fire_flare')
+    if (flare?.tool.kind !== 'fire_flare') throw new Error('expected a flare call')
+    expect(flare.tool.range).toBe(3)
+  })
+
   it('executes move-then-shell through the executor as actions remain', async () => {
     const client = makeFakeClient([
       { intent: choiceAnswer('move'), posture: { type: 'score', score: 2.0, confidence: 0.8 } },
