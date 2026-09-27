@@ -18,7 +18,8 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@scorched-llm/engine": "workspace:^"
+    "@scorched-llm/engine": "workspace:^",
+    "@typesafe-ai/sdk": "^0.6.0"
   },
   "devDependencies": {
     "typescript": "^5.8.0",

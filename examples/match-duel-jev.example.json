@@ -1,0 +1,41 @@
+{
+  "rulesVersion": "v1",
+  "seed": 42,
+  "map": {
+    "width": 20,
+    "height": 20,
+    "obstacleDensity": 0.1,
+    "generatorVersion": "v1",
+    "obstacleHeight": 3
+  },
+  "players": [
+    {
+      "label": "Jev",
+      "startPosition": "random",
+      "scripted": "jev"
+    },
+    {
+      "label": "Conservative Bot",
+      "startPosition": "random",
+      "scripted": "conservative"
+    }
+  ],
+  "fog": {
+    "localRadius": 3,
+    "flareRadius": 2,
+    "flareDuration": "one-round-global"
+  },
+  "actionEconomy": "double",
+  "moveMax": 2,
+  "shell": {
+    "maxRange": 10,
+    "apexHeight": 5,
+    "tankHeight": 1
+  },
+  "lethality": {
+    "hitsToKill": 2
+  },
+  "turnLimit": 50,
+  "perTurnTimeoutMs": 180000,
+  "maxToolCallsPerTurn": 5
+}
