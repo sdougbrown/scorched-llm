@@ -135,19 +135,17 @@ describe('JevAgent', () => {
     expect(shell.tool.power).toBeCloseTo(Math.sqrt(18), 5)
   })
 
-  it('passes when the shot question answers hold', async () => {
+  it('repositions when the shot question answers hold', async () => {
     const client = makeFakeClient([
       { intent: choiceAnswer('fire_shell'), posture: { type: 'score', score: 2.0, confidence: 0.8 } },
       { shot: choiceAnswer('hold') },
+      { direction: choiceAnswer('N') },
     ])
     const agent = createJevAgent('tank-0', makeConfig(), { client })
-    const result = await agent.takeTurn(
-      makeWorldView({ visibleEnemies: [{ id: 'tank-1', position: { x: 8, y: 8 }, hp: 2 }] }),
-      [],
-      makeExecuteToolMock(makeWorldView()),
-    ) as { toolCalls: ToolCall[] }
-    expect(firstCall(result.toolCalls, 'pass')).toBeDefined()
+    const initial = makeWorldView({ visibleEnemies: [{ id: 'tank-1', position: { x: 8, y: 8 }, hp: 2 }], remainingActions: 1 })
+    const result = await agent.takeTurn(initial, [], makeExecuteToolMock(initial)) as { toolCalls: ToolCall[] }
     expect(firstCall(result.toolCalls, 'fire_shell')).toBeUndefined()
+    expect(firstCall(result.toolCalls, 'move')).toBeDefined()
   })
 
   it('passes when the intent probability is below the gate', async () => {
@@ -188,19 +186,39 @@ describe('JevAgent', () => {
     expect(move.tool.distance).toBeGreaterThanOrEqual(1)
   })
 
-  it('fires a flare toward the information goal', async () => {
+  it('fires a flare toward the information goal with code-computed deep range', async () => {
     const client = makeFakeClient([
       { intent: choiceAnswer('fire_flare'), posture: { type: 'score', score: 1.0, confidence: 0.8 } },
       // Tank (5,5), no target seen: the goal is exploration waypoint (3,3),
       // i.e. NW. Only directions within 90 degrees of the goal are offered.
-      { flare_direction: choiceAnswer('NW'), flare_range: choiceAnswer('10') },
+      { flare_direction: choiceAnswer('NW') },
     ])
     const agent = createJevAgent('tank-0', makeConfig(), { client })
     const result = await agent.takeTurn(makeWorldView({ remainingActions: 1 }), [], makeExecuteToolMock(makeWorldView())) as { toolCalls: ToolCall[] }
     const flare = firstCall(result.toolCalls, 'fire_flare')
     if (flare?.tool.kind !== 'fire_flare') throw new Error('expected a flare call')
-    expect(flare.tool.direction).toBe("NW")
-    expect(flare.tool.range).toBe(10)
+    expect(flare.tool.direction).toBe('NW')
+    // Blind flares go as deep as the map allows: (5,5) + NW reaches (0,0).
+    expect(flare.tool.range).toBe(5)
+  })
+
+  it('flags under_attack in state after taking unseen damage', async () => {
+    const client = makeFakeClient([
+      { intent: choiceAnswer('move'), posture: { type: 'score', score: 2.0, confidence: 0.8 } },
+      { direction: choiceAnswer('N') },
+    ])
+    const agent = createJevAgent('tank-0', makeConfig(), { client })
+    const initial = makeWorldView({ hp: 2, remainingActions: 1 })
+    const executor = makeExecuteToolMock(initial)
+    await agent.takeTurn(initial, [], executor)
+    await agent.takeTurn(makeWorldView({ hp: 1, remainingActions: 1 }), [], executor)
+
+    // asks[0] = healthy turn intent ask, asks[2] = wounded turn intent ask.
+    const healthy = (client.asks[0].state as { threats: { under_attack: boolean } }).threats
+    const wounded = (client.asks[2].state as { threats: { under_attack: boolean; under_attack_note: string | null } }).threats
+    expect(healthy.under_attack).toBe(false)
+    expect(wounded.under_attack).toBe(true)
+    expect(wounded.under_attack_note).toContain('unseen enemy')
   })
 
   it('executes move-then-shell through the executor as actions remain', async () => {
