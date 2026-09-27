@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { createJevRawAgent } from '../src/jev-raw-agent.js'
+import { createJevGreedyAgent } from '../src/jev-greedy-agent.js'
 import type { DecisionAnswer, DecisionClient, DecisionQuestion, DecisionResponse } from '../src/jev-client.js'
 import type { WorldView } from '@scorched-llm/engine'
 import type { ToolCall } from '@scorched-llm/engine'
@@ -168,5 +169,23 @@ describe('JevRawAgent', () => {
     for (const text of Object.values(dirQ.criteria)) {
       expect(text).not.toMatch(/recommended|retreat|likely|toward the enemy/)
     }
+  })
+})
+
+describe('JevGreedyAgent boxed-in regression', () => {
+  it('passes instead of crashing when every direction is blocked', async () => {
+    const COMPASS_DIRS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'] as const
+    const obstacles = COMPASS_DIRS.map((d) => {
+      const delta = DIRECTION_DELTAS[d]
+      return { coord: { x: 5 + delta.dx, y: 5 + delta.dy }, terrain: 'obstacle' as const, obstacleHeight: 9 }
+    })
+    const client = makeFakeClient([])
+    const agent = createJevGreedyAgent('tank-0', makeConfig(), { client })
+    const result = await agent.takeTurn(
+      makeWorldView({ remainingActions: 1, localScan: obstacles }),
+      [],
+      makeExecuteToolMock(makeWorldView()),
+    ) as { toolCalls: ToolCall[] }
+    expect(firstCall(result.toolCalls, 'pass')).toBeDefined()
   })
 })

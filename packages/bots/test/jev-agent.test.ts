@@ -93,6 +93,10 @@ function firstCall(calls: ToolCall[], kind: string): ToolCall | undefined {
   return calls.find((c) => c.tool.kind === kind)
 }
 
+
+const COMPASS_DIRS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'] as const
+const DELTAS = DIRECTION_DELTAS
+
 // --- Tests ---
 
 describe('JevAgent', () => {
@@ -367,5 +371,30 @@ describe('JevAgent', () => {
     expect(shell).toBeDefined()
     if (shell?.tool.kind !== 'fire_shell') throw new Error('unreachable')
     expect(shell.tool.power).toBeCloseTo(Math.sqrt(18), 5)
+  })
+})
+
+describe('JevAgent boxed-in regression', () => {
+  it('passes instead of crashing when every direction is blocked and the shot is held', async () => {
+    // Tank walled in: an obstacle one step away in all 8 directions makes
+    // clearDistance 0 for every direction, so directionInfos returns [].
+    const obstacles = COMPASS_DIRS.map((d) => {
+      const delta = DELTAS[d]
+      return { coord: { x: 5 + delta.dx, y: 5 + delta.dy }, terrain: 'obstacle' as const, obstacleHeight: 9 }
+    })
+    const client = makeFakeClient([
+      { intent: choiceAnswer('fire_shell'), posture: { type: 'score', score: 2.0, confidence: 0.8 } },
+      { shot: choiceAnswer('hold') },
+    ])
+    const agent = createJevAgent('tank-0', makeConfig(), { client })
+    const initial = makeWorldView({
+      visibleEnemies: [{ id: 'tank-1', position: { x: 8, y: 8 }, hp: 2 }],
+      remainingActions: 1,
+      localScan: obstacles,
+    })
+    // Before the fix this threw TypeError: Reduce of empty array with no
+    // initial value, on the held-shot fallthrough into the move branch.
+    const result = await agent.takeTurn(initial, [], makeExecuteToolMock(initial)) as { toolCalls: ToolCall[] }
+    expect(firstCall(result.toolCalls, 'pass')).toBeDefined()
   })
 })

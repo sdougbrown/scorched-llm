@@ -109,6 +109,11 @@ export function createJevGreedyAgent(
 
     // 3. Reposition along the harness-recommended direction.
     const moveInfos = sc.directionInfos(cw, target, flee)
+    if (moveInfos.length === 0) {
+      // Fully boxed in: no direction is legal.
+      log.lines.push('greedy: no legal direction (boxed in); passing')
+      return null
+    }
     if (moveInfos.length > 0) {
       const recommended = moveInfos.find((i) => flee && i.leavesFlare)
         ?? moveInfos.find((i) => i.delta <= 67.5)

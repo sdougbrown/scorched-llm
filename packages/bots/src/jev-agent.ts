@@ -194,6 +194,11 @@ export function createJevAgent(
     }
 
     if (gatedIntent === 'move' || gatedIntent === 'fire_shell' || gatedIntent === 'fire_bomb') {
+      if (moveInfos.length === 0) {
+        // Fully boxed in: no direction is legal, so there is nothing to ask.
+        log.lines.push('  move: no legal direction (boxed in); passing')
+        return { kind: 'pass' }
+      }
       const dirCriteria: Record<string, string> = {}
       for (const info of moveInfos) dirCriteria[info.dir] = sc.describeDirection(info, target !== null, flee)
       const moveAnswers = await ask(sc.baseState(cw, candidates.length), {
